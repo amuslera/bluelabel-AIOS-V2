@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import uuid
+import os
 
 from core.event_bus import EventBus
 
 router = APIRouter()
-event_bus = EventBus()
+# Initialize EventBus with simulation mode if Redis is not available
+simulation_mode = os.getenv("REDIS_SIMULATION_MODE", "false").lower() == "true"
+event_bus = EventBus(simulation_mode=simulation_mode)
 
 class EmailRequest(BaseModel):
     from_email: str

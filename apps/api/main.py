@@ -4,11 +4,23 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 
+# Import our custom logging
+from core.logging import setup_logging, logger, LogContext
+from core.config import config
+
 # Import routers
 from apps.api.routers import gateway, agents, knowledge
 
 # Load environment variables
 load_dotenv()
+
+# Set up logging
+logger = setup_logging(
+    service_name="bluelabel-api",
+    log_level=config.logging.level,
+    log_file=config.logging.file,
+    json_format=not config.debug
+)
 
 # Create FastAPI app
 app = FastAPI(
@@ -26,9 +38,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add request logging middleware
+from fastapi import Request
+import time
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    
+    # Log request
+    logger.info(f"Request: {request.method} {request.url.path}")
+    
+    response = await call_next(request)
+    
+    # Log response
+    process_time = time.time() - start_time
+    logger.info(
+        f"Response: {request.method} {request.url.path} - "
+        f"Status: {response.status_code} - "
+        f"Time: {process_time:.3f}s"
+    )
+    
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting Bluelabel AIOS v2 API")
+    logger.info(f"Debug mode: {config.debug}")
+    logger.info(f"Log level: {config.logging.level}")
+
+# Shutdown event
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down Bluelabel AIOS v2 API")
+
 # Root endpoint
 @app.get("/")
 async def root():
+    logger.debug("Root endpoint accessed")
     return {"message": "Welcome to Bluelabel AIOS v2"}
 
 # Health check endpoint

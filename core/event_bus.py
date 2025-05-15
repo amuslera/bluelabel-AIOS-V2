@@ -1,7 +1,6 @@
 import json
 import redis
 import threading
-import logging
 import time
 import uuid
 import os
@@ -15,15 +14,14 @@ from core.event_patterns import (
     MessageHandler, EventBusConfig, DeadLetterMessage
 )
 
+# Import our custom logging
+from core.logging import setup_logging
+
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('event_bus')
+# Use our custom logger
+logger = setup_logging(service_name="event-bus")
 
 class EventBus:
     """Redis Streams-based event bus for asynchronous communication
@@ -32,11 +30,12 @@ class EventBus:
     It supports various message exchange patterns, error handling, and metrics.
     """
     
-    def __init__(self, config: Optional[EventBusConfig] = None):
+    def __init__(self, config: Optional[EventBusConfig] = None, simulation_mode: bool = False):
         """Initialize the event bus with Redis connection
         
         Args:
             config: Optional configuration for the event bus
+            simulation_mode: If True, runs without Redis for testing
         """
         # Use provided config or create default
         self.config = config or EventBusConfig(
@@ -46,19 +45,28 @@ class EventBus:
             redis_password=os.getenv("REDIS_PASSWORD")
         )
         
-        # Initialize Redis connection
-        try:
-            self.redis = redis.Redis(
-                host=self.config.redis_host,
-                port=self.config.redis_port,
-                db=self.config.redis_db,
-                password=self.config.redis_password,
-                decode_responses=True
-            )
-            logger.info(f"Connected to Redis at {self.config.redis_host}:{self.config.redis_port}")
-        except Exception as e:
-            logger.error(f"Failed to connect to Redis: {str(e)}")
-            raise
+        self.simulation_mode = simulation_mode
+        self.simulated_streams: Dict[str, List[Dict[str, Any]]] = {}
+        
+        # Initialize Redis connection if not in simulation mode
+        if not simulation_mode:
+            try:
+                self.redis = redis.Redis(
+                    host=self.config.redis_host,
+                    port=self.config.redis_port,
+                    db=self.config.redis_db,
+                    password=self.config.redis_password,
+                    decode_responses=True
+                )
+                logger.info(f"Connected to Redis at {self.config.redis_host}:{self.config.redis_port}")
+            except Exception as e:
+                logger.error(f"Failed to connect to Redis: {str(e)}")
+                logger.warning("Falling back to simulation mode")
+                self.simulation_mode = True
+                self.redis = None
+        else:
+            logger.info("Running EventBus in simulation mode (no Redis)")
+            self.redis = None
         
         # Map of stream names to message handlers
         self.handlers: Dict[str, List[MessageHandler]] = {}
@@ -80,7 +88,7 @@ class EventBus:
         }
         
         # Create dead letter stream if enabled
-        if self.config.dead_letter_stream:
+        if self.config.dead_letter_stream and not self.simulation_mode:
             try:
                 self.redis.xgroup_create(
                     self.config.dead_letter_stream,
@@ -140,10 +148,21 @@ class EventBus:
         if message.expiration:
             message_dict["expiration"] = message.expiration.isoformat()
         
-        # Publish to Redis Stream
+        # Publish to Redis Stream or simulation
         try:
-            # Use maxlen if configured
-            result = self.redis.xadd(
+            if self.simulation_mode:
+                # Simulate Redis XADD
+                stream_id = f"{int(time.time() * 1000)}-0"
+                if stream not in self.simulated_streams:
+                    self.simulated_streams[stream] = []
+                self.simulated_streams[stream].append({
+                    "id": stream_id,
+                    "data": message_dict
+                })
+                result = stream_id
+            else:
+                # Use maxlen if configured
+                result = self.redis.xadd(
                 stream, 
                 message_dict,
                 maxlen=self.config.default_stream_max_len
