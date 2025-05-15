@@ -74,16 +74,92 @@ bluelabel-aios-v2/
 - [x] Project structure & monorepo
 - [x] CI/CD setup (GitHub Actions)
 - [x] Dockerized dev environment
-- [ ] Base Agent interface
-- [ ] Redis event bus
+- [x] Base Agent interface
+- [x] Redis event bus (with simulation mode)
+- [x] Structured logging system
+- [x] Development environment setup scripts
 
-### 🏗️ Phase 1: Core Framework (MVP)
+### 🏗️ Phase 1: Core Framework (MVP) - In Progress
+- [ ] Agent Runtime Manager
+- [ ] Basic API service endpoints
 - [ ] `ContentMind` Agent
 - [ ] Email Gateway with OAuth
 - [ ] Knowledge Repository (PostgreSQL + Chroma)
 - [ ] End-to-end test: Email → Digest → Email
 
 _See full roadmap in [architecture.md](docs/architecture.md)_
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.9+
+- Git
+- Virtual environment support
+- (Optional) Docker, Redis, PostgreSQL
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/bluelabel/aios-v2.git
+cd bluelabel-aios-v2
+
+# Run complete development setup
+./setup_dev.sh
+
+# Or manually:
+# 1. Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# 4. Start the API server
+python scripts/run_with_logging.py
+# Or: uvicorn apps.api.main:app --reload
+```
+
+### Verify Your Setup
+
+```bash
+# Check if everything is configured correctly
+python scripts/verify_setup.py
+
+# Quick environment check
+./scripts/check_dev_tools.sh
+```
+
+### Access the API
+
+- API Documentation: http://localhost:8000/docs
+- Health Check: http://localhost:8000/health
+- Logs: `logs/bluelabel_aios.log`
+
+### Environment Configuration
+
+The system uses `.env` for configuration. Key settings:
+
+```bash
+# Enable Redis simulation (no Redis required)
+REDIS_SIMULATION_MODE=true
+
+# Set logging level
+LOG_LEVEL=INFO
+
+# Enable debug mode
+API_DEBUG=true
+
+# Optional: Configure LLM providers
+OPENAI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
+```
 
 ---
 
