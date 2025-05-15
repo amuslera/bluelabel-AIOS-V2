@@ -80,9 +80,9 @@ bluelabel-aios-v2/
 - [x] Development environment setup scripts
 
 ### 🏗️ Phase 1: Core Framework (MVP) - In Progress
-- [ ] Agent Runtime Manager
+- [x] Agent Runtime Manager
 - [ ] Basic API service endpoints
-- [ ] `ContentMind` Agent
+- [x] `ContentMind` Agent
 - [ ] Email Gateway with OAuth
 - [ ] Knowledge Repository (PostgreSQL + Chroma)
 - [ ] End-to-end test: Email → Digest → Email

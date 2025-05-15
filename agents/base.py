@@ -35,7 +35,7 @@ class Agent(ABC):
         self.name = name
         self.description = description
         self.tools: List[Tool] = []
-        self.initialize()
+        # Initialize is called manually by the runtime manager
     
     @abstractmethod
     def initialize(self) -> None:
@@ -43,8 +43,12 @@ class Agent(ABC):
         pass
     
     @abstractmethod
-    def process(self, input_data: AgentInput) -> AgentOutput:
+    async def process(self, input_data: AgentInput) -> AgentOutput:
         """Process the input and return an output"""
+        pass
+    
+    async def shutdown(self) -> None:
+        """Cleanup when the agent is shut down"""
         pass
     
     def register_tool(self, tool: Tool) -> None:
