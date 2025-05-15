@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: bluelabel_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bluelabel_aios
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: bluelabel_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: bluelabel_chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/data
+
+  # Uncomment when API is ready
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.api
+  #   container_name: bluelabel_api
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - chromadb
+  #   ports:
+  #     - "8080:8000"
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - .env
+
+volumes:
+  postgres_data:
+  redis_data:
+  chromadb_data:
