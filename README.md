@@ -81,7 +81,7 @@ bluelabel-aios-v2/
 
 ### 🏗️ Phase 1: Core Framework (MVP) - In Progress
 - [x] Agent Runtime Manager
-- [ ] Basic API service endpoints
+- [x] Basic API service endpoints
 - [x] `ContentMind` Agent
 - [ ] Email Gateway with OAuth
 - [ ] Knowledge Repository (PostgreSQL + Chroma)
