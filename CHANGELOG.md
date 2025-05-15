@@ -6,6 +6,16 @@ All notable changes to the Bluelabel AIOS v2 project will be documented in this 
 
 ### Added
 
+#### Basic API Service with Agent and Event Endpoints
+- Implemented comprehensive agent API endpoints
+- Added endpoints for listing, executing, and monitoring agents
+- Created agent registration and capabilities discovery endpoints
+- Implemented metrics endpoints for individual agents and system-wide metrics
+- Added event bus API endpoints for publishing and subscribing to events
+- Created WebSocket support for real-time event streaming
+- Implemented event filtering and stream management
+- Added comprehensive error handling and logging
+
 #### Agent Runtime Manager
 - Implemented comprehensive Agent Runtime Manager for lifecycle and execution
 - Added agent class registration and instance creation

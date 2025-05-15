@@ -9,7 +9,7 @@ from core.logging import setup_logging, logger, LogContext
 from core.config import config
 
 # Import routers
-from apps.api.routers import gateway, agents, knowledge
+from apps.api.routers import gateway, agents, knowledge, events
 
 # Load environment variables
 load_dotenv()
@@ -89,6 +89,11 @@ async def health_check():
 app.include_router(gateway.router, prefix="/api/v1/gateway", tags=["gateway"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
+app.include_router(events.router, prefix="/api/v1/events", tags=["events"])
+
+# Register agent startup events
+from apps.api.routers.agents import startup_event as agent_startup
+app.add_event_handler("startup", agent_startup)
 
 if __name__ == "__main__":
     uvicorn.run(
