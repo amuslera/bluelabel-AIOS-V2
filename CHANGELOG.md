@@ -6,6 +6,27 @@ All notable changes to the Bluelabel AIOS v2 project will be documented in this 
 
 ### Added
 
+#### LLM Provider Abstraction and OpenAI Integration
+- Implemented base LLM Provider interface with standardized methods
+- Created OpenAI provider with full chat and embedding support
+- Developed Model Router with smart routing strategies (fallback, cheapest, fastest, best_quality)
+- Added comprehensive configuration system for all LLM providers
+- Implemented retry logic and error handling
+- Created factory pattern for easy router initialization
+- Added support for preferred provider selection
+- Wrote comprehensive test suite with mocked providers
+
+#### MCP (Multi-Component Prompting) Framework
+- Implemented core models: PromptVariable, PromptComponent, PromptTemplate
+- Created storage abstraction with in-memory implementation
+- Developed validation system for templates and inputs
+- Built rendering engine with variable substitution
+- Added version control for prompt components
+- Implemented component discovery with tagging system
+- Created default components library (summarizer, entity extractor, QA)
+- Added JSON schema validation for complex variable types
+- Wrote comprehensive test coverage
+
 #### Gmail Gateway Implementation
 - Implemented Gmail Direct Gateway with OAuth 2.0 authentication
 - Added OAuth server for handling Google authentication flow
@@ -18,6 +39,8 @@ All notable changes to the Bluelabel AIOS v2 project will be documented in this 
 ### Changed
 - Updated requirements.txt with Google API client dependencies
 - Enhanced gateway service structure with Gmail implementation
+- Added jsonschema dependency for MCP validation
+- Improved core config to support LLM settings
 
 ### Added
 

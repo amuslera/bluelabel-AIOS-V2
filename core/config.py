@@ -52,8 +52,8 @@ class LoggingConfig(BaseModel):
     file: str = os.getenv("LOG_FILE", "logs/bluelabel_aios.log")
 
 
-class AppConfig(BaseModel):
-    """Main application configuration"""
+class Settings(BaseModel):
+    """Main application configuration with backward compatibility"""
     debug: bool = os.getenv("API_DEBUG", "false").lower() == "true"
     database: DatabaseConfig = DatabaseConfig()
     redis: RedisConfig = RedisConfig()
@@ -62,7 +62,21 @@ class AppConfig(BaseModel):
     email: EmailConfig = EmailConfig()
     whatsapp: WhatsAppConfig = WhatsAppConfig()
     logging: LoggingConfig = LoggingConfig()
+    
+    # Add direct access to common settings for compatibility
+    @property
+    def OPENAI_API_KEY(self) -> Optional[str]:
+        return self.llm.openai_api_key
+    
+    @property
+    def ANTHROPIC_API_KEY(self) -> Optional[str]:
+        return self.llm.anthropic_api_key
+    
+    @property
+    def DEFAULT_LLM_PROVIDER(self) -> str:
+        return self.llm.default_provider
 
 
-# Create global config instance
-config = AppConfig()
+# Create global config instances
+config = Settings()
+settings = config  # Alias for compatibility with architecture.md
