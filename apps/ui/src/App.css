@@ -1,0 +1,21 @@
+/* App specific styles */
+
+/* Cursor blink animation */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s infinite;
+}
+
+/* Terminal cursor */
+.cursor {
+  display: inline-block;
+  width: 0.5rem;
+  height: 1rem;
+  background-color: #00ffff;
+  animation: blink 1s infinite;
+  box-shadow: 0 0 5px #00ffff;
+}
