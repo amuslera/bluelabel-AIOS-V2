@@ -32,12 +32,14 @@ async def initialize_default_components(manager: PromptManager) -> None:
     """Initialize default prompt components"""
     # Create some default components for common use cases
     
-    # Content summarization component
+    # Content summarization component with style options
     await manager.create_component(
         name="content_summarizer",
-        description="Summarizes content into key points",
-        template="""Please summarize the following content into {num_points} key points:
+        description="Summarizes content in different styles",
+        template="""Please summarize the following content in a {style} style.
+{num_points}Maximum length: {max_length} words.
 
+Content:
 {content}
 
 Summary:""",
@@ -49,11 +51,25 @@ Summary:""",
                 "required": True
             },
             {
+                "name": "style",
+                "description": "Summary style (concise, detailed, bullet)",
+                "type": "string",
+                "required": False,
+                "default": "concise"
+            },
+            {
                 "name": "num_points",
-                "description": "Number of key points to extract",
+                "description": "Number of key points for bullet style",
+                "type": "string",
+                "required": False,
+                "default": "Extract 3 key points.\n"
+            },
+            {
+                "name": "max_length",
+                "description": "Maximum length in words",
                 "type": "number",
                 "required": False,
-                "default": 3
+                "default": 200
             }
         ],
         created_by="system",
@@ -61,7 +77,9 @@ Summary:""",
         examples=[
             {
                 "content": "This is a long article about AI...",
-                "num_points": 3
+                "style": "bullet",
+                "num_points": "Extract 5 key points.\n",
+                "max_length": 300
             }
         ]
     )

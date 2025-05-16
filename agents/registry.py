@@ -1,11 +1,13 @@
 from typing import Dict, Any, List, Optional, Type, Callable
 from .base import Agent
 from .content_mind import ContentMindAgent
+from .content_mind_llm import ContentMindLLM
 from .gateway_agent import GatewayAgent
 
 # Registry of agent types to agent classes
 _AGENT_REGISTRY: Dict[str, Type[Agent]] = {
     "content_mind": ContentMindAgent,
+    "content_mind_llm": ContentMindLLM,
     "gateway": GatewayAgent
 }
 
