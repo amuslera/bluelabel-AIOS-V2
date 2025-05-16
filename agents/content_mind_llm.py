@@ -6,10 +6,8 @@ import json
 
 from .base import Agent, AgentInput, AgentOutput
 from core.config import settings
-from services.model_router.router import ModelRouter
-from services.model_router.factory import create_default_router
-from services.mcp.manager import PromptManager
-from services.mcp.factory import create_prompt_manager
+from services.llm.router import LLMRouter
+from services.mcp.prompt_manager import MCPPromptManager
 
 logger = logging.getLogger(__name__)
 
