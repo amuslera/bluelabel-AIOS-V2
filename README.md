@@ -11,6 +11,38 @@ Bluelabel AIOS is a platform for developing, deploying, and orchestrating modula
 
 ---
 
+## 🚀 Quick Start
+
+1. **Clone and setup**:
+   ```bash
+   git clone <repository_url>
+   cd bluelabel-aios-v2
+   ./scripts/setup_basic.sh
+   ```
+
+2. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys:
+   # - OPENAI_API_KEY
+   # - ANTHROPIC_API_KEY (optional)
+   # - GOOGLE_GENERATIVEAI_API_KEY (optional)
+   # - Google OAuth credentials
+   ```
+
+3. **Start the API server**:
+   ```bash
+   ./scripts/run_api.sh
+   ```
+
+4. **Test the system**:
+   ```bash
+   # In another terminal
+   python scripts/test_full_integration.py
+   ```
+
+---
+
 ## 🚀 Initial MVP: Digest via Email
 
 1. User sends a PDF or URL via email or WhatsApp  
@@ -33,6 +65,36 @@ Bluelabel AIOS is a platform for developing, deploying, and orchestrating modula
 - **Observability:** Prometheus, Grafana, OpenTelemetry
 
 📊 [See Full Architecture Diagram](docs/assets/architecture.png)
+
+---
+
+## ✅ Current Status (May 2025)
+
+### Completed Components
+- **Core Framework**: Event Bus, Configuration, Logging
+- **API Service**: FastAPI server with comprehensive endpoints
+- **LLM Integration**: Multi-provider support (OpenAI, Anthropic, Gemini) with smart routing
+- **Gmail OAuth**: Full OAuth 2.0 implementation with Gmail API integration
+- **Knowledge Repository**: PostgreSQL + ChromaDB with search capabilities
+- **MCP Framework**: Complete prompt management system
+- **ContentMindLLM Agent**: Full implementation with MCP integration
+- **Workflow Engine**: Async execution with persistence and monitoring
+- **Integration Testing**: Comprehensive test suite with real API verification
+
+### In Progress
+- Frontend UI (React)
+- WhatsApp Business API integration
+- Additional agents (ContextMind, WebFetcher)
+
+### Ready for Testing
+The system is now configured with real API keys and can be tested with:
+```bash
+# Start API server
+./scripts/run_api.sh
+
+# Run integration tests
+python scripts/test_full_integration.py
+```
 
 ---
 
