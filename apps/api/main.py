@@ -9,7 +9,7 @@ from core.logging import setup_logging, logger, LogContext
 from core.config import config
 
 # Import routers
-from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication
+from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication, workflows
 
 # Load environment variables
 load_dotenv()
@@ -96,6 +96,7 @@ app.include_router(gmail_hybrid.router, prefix="/api/v1/gmail-hybrid", tags=["gm
 app.include_router(gmail_complete.router, prefix="/api/v1/gmail-complete", tags=["gmail-complete"])
 app.include_router(email.router, prefix="/api/v1/email", tags=["email"])
 app.include_router(communication.router, prefix="/api/v1/communication", tags=["communication"])
+app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["workflows"])
 
 # Register agent startup events
 from apps.api.routers.agents import startup_event as agent_startup
