@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 from uuid import uuid4
 
-from core.event_bus import EventBus, EventMetadata
+from core.event_bus import EventBus
+from core.event_patterns import EventMetadata
 from agents.registry import AgentRegistry
 from agents.base import AgentInput, AgentOutput
 from shared.schemas.base import AgentType

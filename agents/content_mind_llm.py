@@ -6,8 +6,8 @@ import json
 
 from .base import Agent, AgentInput, AgentOutput
 from core.config import settings
-from services.llm.router import LLMRouter
-from services.mcp.prompt_manager import MCPPromptManager
+from services.model_router.router import ModelRouter
+from services.mcp.prompt_manager import MCPManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class ContentMindLLM(Agent):
     def __init__(
         self,
         model_router: Optional[ModelRouter] = None,
-        prompt_manager: Optional[PromptManager] = None
+        prompt_manager: Optional[MCPManager] = None
     ):
         super().__init__(
             name="ContentMind LLM",

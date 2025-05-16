@@ -1,9 +1,0 @@
-{
-  "method": "backend_proxy",
-  "api_base": "http://localhost:8081",
-  "endpoints": {
-    "send": "/gateway/email/google",
-    "check": "/gateway/email/check-now",
-    "status": "/gateway/google/status"
-  }
-}

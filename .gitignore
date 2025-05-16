@@ -1,58 +1,38 @@
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Auth tokens
+token.json
+**/token.json
+gmail_token.json
+credentials.json
+
+# Data files
+data/gmail_token.json
+data/gmail_credentials/
+data/knowledge/
+data/chroma/
+
+# Logs
+*.log
+logs/
+api.log
 
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
-.venv/
-venv/
-ENV/
-env/
-.env.local
-.env.*.local
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
-
-# Environment and config
-.env
-.env.*
-!.env.example
-
-# Logs
-logs/
-*.log
-
-# Data and credentials
-data/mcp/google_credentials.json
-data/mcp/gmail_token.json
-data/knowledge/
-data/temp/
-credentials.json
-token.json
 
 # OS
 .DS_Store
@@ -64,41 +44,13 @@ htmlcov/
 .pytest_cache/
 .tox/
 
-# Database
-db.sqlite3
-*.db
-
-# Redis
-dump.rdb
-
-# Node (for potential UI)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Jupyter
-.ipynb_checkpoints
-
-# API documentation
-api_docs/
-
 # Temporary files
 *.tmp
 *.bak
 *.orig
+*~
 
-# Custom
-.notes/
-_archive/
-scratch/
-
-# Docker volumes (if mounted locally)
-docker_volumes/
-
-# Temporary scripts and documentation
-RUN_GMAIL_TEST.md
-GMAIL_INTEGRATION_STATUS.md
-QUICKSTART.md
-API_INSTRUCTIONS.md
-data/chroma/
+# Build
+build/
+dist/
+*.egg-info/

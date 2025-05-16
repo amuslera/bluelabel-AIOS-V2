@@ -28,7 +28,7 @@ def create_knowledge_repository(
     """
     # Determine which implementation to use
     if use_postgres is None:
-        use_postgres = getattr(settings, 'USE_POSTGRES_KNOWLEDGE', True)
+        use_postgres = os.getenv('USE_POSTGRES_KNOWLEDGE', 'true').lower() == 'true'
     
     if use_postgres:
         # Use PostgreSQL-backed repository
