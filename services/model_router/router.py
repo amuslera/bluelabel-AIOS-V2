@@ -7,6 +7,8 @@ import asyncio
 
 from .base import LLMProvider, LLMProviderConfig, LLMResponse, EmbeddingResponse, LLMMessage
 from .openai_provider import OpenAIProvider
+from .anthropic_provider import AnthropicProvider
+from .gemini_provider import GeminiProvider
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,7 @@ class ProviderType(str, Enum):
     """Available LLM provider types"""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
     OLLAMA = "ollama"
 
 class RouterStrategy(str, Enum):
@@ -29,7 +32,9 @@ class ModelRouter:
     
     PROVIDER_CLASSES = {
         ProviderType.OPENAI: OpenAIProvider,
-        # Future: AnthropicProvider, OllamaProvider
+        ProviderType.ANTHROPIC: AnthropicProvider,
+        ProviderType.GEMINI: GeminiProvider,
+        # Future: OllamaProvider
     }
     
     def __init__(self):
@@ -155,9 +160,10 @@ class ModelRouter:
         elif strategy == RouterStrategy.CHEAPEST:
             # Sort by cost (simplified - in real implementation would use pricing data)
             cost_order = {
-                "openai": 2,  # More expensive
-                "anthropic": 1,  # Medium
-                "ollama": 0   # Free (local)
+                "ollama": 0,     # Free (local)
+                "gemini": 1,     # Cheapest cloud
+                "anthropic": 2,  # Medium cost
+                "openai": 3      # Most expensive
             }
             return sorted(available_providers, key=lambda x: cost_order.get(x, 999))
         
@@ -165,8 +171,9 @@ class ModelRouter:
             # Sort by expected latency (simplified)
             speed_order = {
                 "ollama": 0,     # Local is fastest
-                "openai": 1,     # Fast API
-                "anthropic": 2   # Slightly slower
+                "gemini": 1,     # Very fast API
+                "openai": 2,     # Fast API
+                "anthropic": 3   # Slightly slower
             }
             return sorted(available_providers, key=lambda x: speed_order.get(x, 999))
         
@@ -175,7 +182,8 @@ class ModelRouter:
             quality_order = {
                 "anthropic": 0,  # Best for many tasks
                 "openai": 1,     # Very good
-                "ollama": 2      # Depends on model
+                "gemini": 2,     # Good quality
+                "ollama": 3      # Depends on model
             }
             return sorted(available_providers, key=lambda x: quality_order.get(x, 999))
         

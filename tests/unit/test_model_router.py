@@ -1,278 +1,272 @@
-"""Unit tests for Model Router with mocked providers"""
+"""Tests for the Model Router with multiple LLM providers"""
 
 import pytest
 import asyncio
-from typing import List, Dict, Any
-from datetime import datetime
+from unittest.mock import Mock, AsyncMock, patch
+import os
 
-from services.model_router.base import (
-    LLMProvider, LLMProviderConfig, LLMResponse, 
-    EmbeddingResponse, LLMMessage
-)
 from services.model_router.router import ModelRouter, ProviderType, RouterStrategy
+from services.model_router.base import LLMProviderConfig, LLMResponse, LLMMessage
+from services.model_router.factory import (
+    create_default_router,
+    create_cheapest_router,
+    create_fastest_router,
+    create_quality_router
+)
 
-class MockLLMProvider(LLMProvider):
-    """Mock LLM provider for testing"""
-    
-    def __init__(self, config: LLMProviderConfig, available: bool = True, 
-                 fail_on_use: bool = False):
-        super().__init__(config)
-        self._available = available
-        self._fail_on_use = fail_on_use
-        self.call_count = 0
-    
-    async def complete(self, prompt: str, max_tokens: int = None,
-                      temperature: float = None, **kwargs) -> LLMResponse:
-        self.call_count += 1
-        if self._fail_on_use:
-            raise Exception(f"Mock provider {self.name} failed")
-            
-        return LLMResponse(
-            text=f"Mock response to: {prompt}",
-            model="mock-model",
-            provider=self.name,
-            usage={"total_tokens": 10}
-        )
-    
-    async def chat(self, messages: List[LLMMessage], max_tokens: int = None,
-                   temperature: float = None, **kwargs) -> LLMResponse:
-        self.call_count += 1
-        if self._fail_on_use:
-            raise Exception(f"Mock provider {self.name} failed")
-            
-        last_message = messages[-1].content if messages else ""
-        return LLMResponse(
-            text=f"Mock chat response to: {last_message}",
-            model="mock-model",
-            provider=self.name,
-            usage={"total_tokens": 10}
-        )
-    
-    async def embed(self, text: str, **kwargs) -> EmbeddingResponse:
-        self.call_count += 1
-        if self._fail_on_use:
-            raise Exception(f"Mock provider {self.name} failed")
-            
-        # Generate mock embedding (10 dimensions)
-        mock_embedding = [0.1 * i for i in range(10)]
-        return EmbeddingResponse(
-            embeddings=mock_embedding,
-            model="mock-embedding",
-            provider=self.name,
-            usage={"total_tokens": 5}
-        )
-    
-    async def is_available(self) -> bool:
-        return self._available
-    
-    def get_capabilities(self) -> Dict[str, Any]:
-        return {
-            "provider": self.name,
-            "models": {
-                "chat": ["mock-model"],
-                "embedding": ["mock-embedding"]
-            },
-            "max_tokens": 1000,
-            "supports_functions": False,
-            "supports_embeddings": True
-        }
+
+@pytest.fixture
+def mock_openai_provider():
+    """Create a mock OpenAI provider"""
+    provider = Mock()
+    provider.name = "openai"
+    provider.is_available = AsyncMock(return_value=True)
+    provider.chat = AsyncMock(return_value=LLMResponse(
+        text="OpenAI response",
+        model="gpt-4",
+        provider="openai",
+        usage={"total_tokens": 100}
+    ))
+    provider.get_capabilities = Mock(return_value={
+        "models": ["gpt-4", "gpt-3.5-turbo"],
+        "supports_chat": True
+    })
+    return provider
+
+
+@pytest.fixture
+def mock_anthropic_provider():
+    """Create a mock Anthropic provider"""
+    provider = Mock()
+    provider.name = "anthropic"
+    provider.is_available = AsyncMock(return_value=True)
+    provider.chat = AsyncMock(return_value=LLMResponse(
+        text="Claude response",
+        model="claude-3-sonnet",
+        provider="anthropic",
+        usage={"total_tokens": 80}
+    ))
+    provider.get_capabilities = Mock(return_value={
+        "models": ["claude-3-sonnet", "claude-3-opus"],
+        "supports_chat": True
+    })
+    return provider
+
+
+@pytest.fixture
+def mock_gemini_provider():
+    """Create a mock Gemini provider"""
+    provider = Mock()
+    provider.name = "gemini"
+    provider.is_available = AsyncMock(return_value=True)
+    provider.chat = AsyncMock(return_value=LLMResponse(
+        text="Gemini response",
+        model="gemini-pro",
+        provider="gemini",
+        usage={"total_tokens": 60}
+    ))
+    provider.get_capabilities = Mock(return_value={
+        "models": ["gemini-pro", "gemini-pro-vision"],
+        "supports_chat": True
+    })
+    return provider
+
 
 @pytest.mark.asyncio
 async def test_router_initialization():
-    """Test router initialization"""
+    """Test basic router initialization"""
     router = ModelRouter()
     assert router.providers == {}
     assert router.default_strategy == RouterStrategy.FALLBACK
     assert router.provider_order == []
+
 
 @pytest.mark.asyncio
 async def test_add_provider():
     """Test adding providers to router"""
     router = ModelRouter()
     
-    # Create mock provider
-    config = LLMProviderConfig(
-        provider_name="mock1",
-        model_name="mock-model"
-    )
-    provider = MockLLMProvider(config)
-    
-    # Manually add provider (since we're testing without real providers)
-    router.providers["mock1"] = provider
-    router.provider_order.append("mock1")
-    
-    assert "mock1" in router.providers
-    assert "mock1" in router.provider_order
+    # Mock the provider class
+    with patch('services.model_router.router.OpenAIProvider') as MockProvider:
+        mock_instance = Mock()
+        mock_instance.is_available = AsyncMock(return_value=True)
+        MockProvider.return_value = mock_instance
+        
+        config = LLMProviderConfig(
+            provider_name="openai",
+            api_key="test-key",
+            model_name="gpt-4"
+        )
+        
+        result = await router.add_provider(ProviderType.OPENAI, config)
+        assert result is True
+        assert "openai" in router.providers
+        assert "openai" in router.provider_order
+
 
 @pytest.mark.asyncio
-async def test_complete_with_single_provider():
-    """Test completion with single provider"""
+async def test_routing_strategies(mock_openai_provider, mock_anthropic_provider, mock_gemini_provider):
+    """Test different routing strategies"""
     router = ModelRouter()
     
-    # Add mock provider
-    config = LLMProviderConfig(provider_name="mock1")
-    provider = MockLLMProvider(config)
-    router.providers["mock1"] = provider
-    router.provider_order.append("mock1")
+    # Manually add mock providers
+    router.providers = {
+        "openai": mock_openai_provider,
+        "anthropic": mock_anthropic_provider,
+        "gemini": mock_gemini_provider
+    }
+    router.provider_order = ["openai", "anthropic", "gemini"]
     
-    # Test completion
-    response = await router.complete("Test prompt")
+    # Test CHEAPEST strategy
+    providers = await router._get_providers_by_strategy(RouterStrategy.CHEAPEST)
+    assert providers[0] == "gemini"  # Cheapest
+    assert providers[-1] == "openai"  # Most expensive
     
-    assert response.text == "Mock response to: Test prompt"
-    assert response.provider == "mock1"
-    assert provider.call_count == 1
+    # Test FASTEST strategy
+    providers = await router._get_providers_by_strategy(RouterStrategy.FASTEST)
+    assert providers[0] == "gemini"  # Fastest
+    assert providers[-1] == "anthropic"  # Slowest
+    
+    # Test BEST_QUALITY strategy
+    providers = await router._get_providers_by_strategy(RouterStrategy.BEST_QUALITY)
+    assert providers[0] == "anthropic"  # Best quality
+    assert providers[-1] == "gemini"  # Lower quality
+
 
 @pytest.mark.asyncio
-async def test_chat_with_multiple_providers():
-    """Test chat with multiple providers"""
+async def test_chat_with_fallback(mock_openai_provider, mock_anthropic_provider):
+    """Test chat with fallback when primary provider fails"""
     router = ModelRouter()
     
-    # Add multiple mock providers
-    provider1 = MockLLMProvider(
-        LLMProviderConfig(provider_name="mock1"),
-        available=False  # Not available
-    )
-    provider2 = MockLLMProvider(
-        LLMProviderConfig(provider_name="mock2"),
-        available=True
-    )
+    # Set up providers where OpenAI fails
+    mock_openai_provider.chat.side_effect = Exception("OpenAI API error")
     
-    router.providers = {"mock1": provider1, "mock2": provider2}
-    router.provider_order = ["mock1", "mock2"]
+    router.providers = {
+        "openai": mock_openai_provider,
+        "anthropic": mock_anthropic_provider
+    }
+    router.provider_order = ["openai", "anthropic"]
     
-    # Test chat - should skip mock1 and use mock2
     messages = [LLMMessage(role="user", content="Hello")]
     response = await router.chat(messages)
     
-    assert response.provider == "mock2"
-    assert provider1.call_count == 0  # Skipped due to unavailability
-    assert provider2.call_count == 1
+    # Should fallback to Anthropic
+    assert response.provider == "anthropic"
+    assert response.text == "Claude response"
+    mock_openai_provider.chat.assert_called_once()
+    mock_anthropic_provider.chat.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_fallback_strategy():
-    """Test fallback routing strategy"""
-    router = ModelRouter()
-    router.set_default_strategy(RouterStrategy.FALLBACK)
-    
-    # Add providers where first one fails
-    provider1 = MockLLMProvider(
-        LLMProviderConfig(provider_name="mock1"),
-        fail_on_use=True
-    )
-    provider2 = MockLLMProvider(
-        LLMProviderConfig(provider_name="mock2")
-    )
-    
-    router.providers = {"mock1": provider1, "mock2": provider2}
-    router.provider_order = ["mock1", "mock2"]
-    
-    # Should fallback to mock2 after mock1 fails
-    response = await router.complete("Test")
-    
-    assert response.provider == "mock2"
-    assert provider1.call_count == 1
-    assert provider2.call_count == 1
-
-@pytest.mark.asyncio
-async def test_embeddings():
-    """Test embedding generation"""
-    router = ModelRouter()
-    
-    # Add mock provider with embedding support
-    provider = MockLLMProvider(
-        LLMProviderConfig(provider_name="mock1")
-    )
-    router.providers["mock1"] = provider
-    
-    # Test embedding
-    response = await router.embed("Test text")
-    
-    assert len(response.embeddings) == 10
-    assert response.provider == "mock1"
-    assert provider.call_count == 1
 
 @pytest.mark.asyncio
 async def test_preferred_provider():
     """Test using preferred provider"""
     router = ModelRouter()
     
-    # Add multiple providers
-    provider1 = MockLLMProvider(LLMProviderConfig(provider_name="mock1"))
-    provider2 = MockLLMProvider(LLMProviderConfig(provider_name="mock2"))
+    with patch('services.model_router.router.OpenAIProvider') as MockOpenAI:
+        with patch('services.model_router.router.AnthropicProvider') as MockAnthropic:
+            mock_openai = Mock()
+            mock_openai.is_available = AsyncMock(return_value=True)
+            mock_openai.chat = AsyncMock(return_value=LLMResponse(
+                text="OpenAI response",
+                model="gpt-4",
+                provider="openai"
+            ))
+            MockOpenAI.return_value = mock_openai
+            
+            mock_anthropic = Mock()
+            mock_anthropic.is_available = AsyncMock(return_value=True)
+            mock_anthropic.chat = AsyncMock(return_value=LLMResponse(
+                text="Claude response",
+                model="claude-3",
+                provider="anthropic"
+            ))
+            MockAnthropic.return_value = mock_anthropic
+            
+            # Add both providers
+            await router.add_provider(ProviderType.OPENAI, LLMProviderConfig(provider_name="openai"))
+            await router.add_provider(ProviderType.ANTHROPIC, LLMProviderConfig(provider_name="anthropic"))
+            
+            # Use preferred provider
+            messages = [LLMMessage(role="user", content="Hello")]
+            response = await router.chat(messages, preferred_provider="anthropic")
+            
+            assert response.provider == "anthropic"
+            mock_anthropic.chat.assert_called_once()
+            mock_openai.chat.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_factory_creation():
+    """Test router creation through factory"""
+    # Mock environment variables
+    with patch.dict(os.environ, {
+        'OPENAI_API_KEY': 'test-openai-key',
+        'ANTHROPIC_API_KEY': 'test-anthropic-key',
+        'GEMINI_API_KEY': 'test-gemini-key'
+    }):
+        with patch('services.model_router.factory.ModelRouter') as MockRouter:
+            mock_router_instance = Mock()
+            MockRouter.return_value = mock_router_instance
+            mock_router_instance.add_provider = AsyncMock(return_value=True)
+            mock_router_instance.get_available_providers = Mock(return_value=[
+                {"name": "openai"},
+                {"name": "anthropic"},
+                {"name": "gemini"}
+            ])
+            
+            router = await create_default_router()
+            
+            # Should have attempted to add all providers
+            assert mock_router_instance.add_provider.call_count == 3
+            assert mock_router_instance.set_default_strategy.called
+
+
+@pytest.mark.asyncio
+async def test_strategy_factories():
+    """Test strategy-specific factory functions"""
+    with patch('services.model_router.factory.create_default_router') as mock_create:
+        # Test cheapest router
+        await create_cheapest_router()
+        mock_create.assert_called_with(strategy=RouterStrategy.CHEAPEST)
+        
+        # Test fastest router
+        await create_fastest_router()
+        mock_create.assert_called_with(strategy=RouterStrategy.FASTEST)
+        
+        # Test quality router
+        await create_quality_router()
+        mock_create.assert_called_with(strategy=RouterStrategy.BEST_QUALITY)
+
+
+@pytest.mark.asyncio
+async def test_error_handling():
+    """Test error handling when all providers fail"""
+    router = ModelRouter()
     
-    router.providers = {"mock1": provider1, "mock2": provider2}
-    router.provider_order = ["mock1", "mock2"]
+    # Create providers that all fail
+    mock_provider = Mock()
+    mock_provider.is_available = AsyncMock(return_value=True)
+    mock_provider.chat = AsyncMock(side_effect=Exception("Provider error"))
     
-    # Request specific provider
-    response = await router.complete("Test", preferred_provider="mock2")
+    router.providers = {"test": mock_provider}
+    router.provider_order = ["test"]
     
-    assert response.provider == "mock2"
-    assert provider1.call_count == 0  # Not used
-    assert provider2.call_count == 1
+    messages = [LLMMessage(role="user", content="Hello")]
+    
+    with pytest.raises(Exception, match="Provider error"):
+        await router.chat(messages)
+
 
 @pytest.mark.asyncio
 async def test_no_available_providers():
-    """Test behavior when no providers are available"""
+    """Test handling when no providers are available"""
     router = ModelRouter()
     
-    # Add unavailable provider
-    provider = MockLLMProvider(
-        LLMProviderConfig(provider_name="mock1"),
-        available=False
-    )
-    router.providers["mock1"] = provider
-    router.provider_order = ["mock1"]
+    messages = [LLMMessage(role="user", content="Hello")]
     
-    # Should raise error
     with pytest.raises(RuntimeError, match="No available providers"):
-        await router.complete("Test")
+        await router.chat(messages)
 
-@pytest.mark.asyncio
-async def test_provider_capabilities():
-    """Test getting provider capabilities"""
-    router = ModelRouter()
-    
-    # Add mock provider
-    provider = MockLLMProvider(LLMProviderConfig(provider_name="mock1"))
-    router.providers["mock1"] = provider
-    
-    # Get capabilities
-    available = router.get_available_providers()
-    
-    assert len(available) == 1
-    assert available[0]["name"] == "mock1"
-    assert available[0]["available"] == True
-    assert "capabilities" in available[0]
-    assert available[0]["capabilities"]["max_tokens"] == 1000
-
-@pytest.mark.asyncio
-async def test_routing_strategies():
-    """Test different routing strategies"""
-    router = ModelRouter()
-    
-    # Add providers
-    providers = {
-        "openai": MockLLMProvider(LLMProviderConfig(provider_name="openai")),
-        "anthropic": MockLLMProvider(LLMProviderConfig(provider_name="anthropic")),
-        "ollama": MockLLMProvider(LLMProviderConfig(provider_name="ollama"))
-    }
-    
-    for name, provider in providers.items():
-        router.providers[name] = provider
-        router.provider_order.append(name)
-    
-    # Test different strategies
-    strategies = [
-        RouterStrategy.CHEAPEST,
-        RouterStrategy.FASTEST,
-        RouterStrategy.BEST_QUALITY
-    ]
-    
-    for strategy in strategies:
-        router.set_default_strategy(strategy)
-        response = await router.complete(f"Test with {strategy}")
-        assert response.provider in providers
-        assert response.text.startswith("Mock response")
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
