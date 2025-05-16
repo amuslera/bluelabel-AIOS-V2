@@ -30,7 +30,7 @@ export const RetroCard: React.FC<RetroCardProps> = ({
   return (
     <div className={`border-2 ${borderColors[variant]} p-4 bg-terminal-dark ascii-border ${className}`}>
       {title && (
-        <h3 className={`text-xl mb-4 ${titleColors[variant]} font-bold retro-glow`}>
+        <h3 className={`text-lg mb-4 ${titleColors[variant]} font-bold`}>
           {title}
         </h3>
       )}

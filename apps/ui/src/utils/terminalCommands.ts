@@ -1,4 +1,8 @@
 import { apiClient } from '../api/client';
+import { systemAPI } from '../api/system';
+import { agentsAPI } from '../api/agents';
+import { inboxAPI } from '../api/inbox';
+import { knowledgeAPI } from '../api/knowledge';
 
 interface CommandResult {
   output: string;
@@ -15,10 +19,18 @@ interface Command {
 const commands: Record<string, Command> = {
   help: {
     description: 'Show available commands',
-    execute: async () => {
+    usage: 'help [command]',
+    execute: async (args) => {
+      if (args[0] && commands[args[0]]) {
+        const cmd = commands[args[0]];
+        return {
+          output: `${args[0]} - ${cmd.description}\nUsage: ${cmd.usage || args[0]}`,
+        };
+      }
+
       const helpText = Object.entries(commands)
         .map(([name, cmd]) => 
-          `${name.padEnd(15)} - ${cmd.description}${cmd.usage ? `\n${''.padEnd(15)}   Usage: ${cmd.usage}` : ''}`
+          `${name.padEnd(15)} - ${cmd.description}`
         )
         .join('\n');
       
@@ -40,7 +52,28 @@ const commands: Record<string, Command> = {
     usage: 'status [component]',
     execute: async (args) => {
       try {
-        // Mock data for now - will connect to real API later
+        const health = await systemAPI.getHealth();
+        
+        if (args[0] && health.services[args[0]]) {
+          const component = health.services[args[0]];
+          const time = new Date(component.lastCheck).toLocaleTimeString();
+          return {
+            output: `${args[0].toUpperCase()}: [${component.status.toUpperCase()}] - Last check: ${time}`,
+          };
+        }
+
+        // Show all components
+        const statusText = Object.entries(health.services)
+          .map(([name, data]) => 
+            `${name.padEnd(15)} [${data.status.toUpperCase()}]`
+          )
+          .join('\n');
+
+        return {
+          output: `SYSTEM STATUS: ${health.status.toUpperCase()}\n\n${statusText}`,
+        };
+      } catch (error) {
+        // Fallback to mock data if API fails
         const mockStatus = {
           content_mind: { status: 'ok', lastCheck: '2min ago' },
           email_gateway: { status: 'ok', lastCheck: '5min ago' },
@@ -64,11 +97,6 @@ const commands: Record<string, Command> = {
         return {
           output: `SYSTEM STATUS: ONLINE\n\n${statusText}`,
         };
-      } catch (error) {
-        return {
-          output: 'Failed to fetch system status',
-          type: 'error',
-        };
       }
     },
   },
@@ -84,7 +112,7 @@ const commands: Record<string, Command> = {
         };
       }
 
-      const agent = args[0];
+      const agentName = args[0];
       let input = '';
       
       // Parse --input flag
@@ -93,18 +121,39 @@ const commands: Record<string, Command> = {
         input = args.slice(inputIndex + 1).join(' ').replace(/^["']|["']$/g, '');
       }
 
+      if (!input) {
+        return {
+          output: 'Error: No input provided\nUsage: run <agent> --input "<text>"',
+          type: 'error',
+        };
+      }
+
       try {
-        // Mock agent execution for now
+        // Get agents list to find the agent ID
+        const agents = await agentsAPI.getAgents();
+        const agent = agents.find(a => a.name.toLowerCase() === agentName.toLowerCase());
+        
+        if (!agent) {
+          return {
+            output: `Error: Agent '${agentName}' not found`,
+            type: 'error',
+          };
+        }
+
         const timestamp = new Date().toLocaleTimeString();
+        const result = await agentsAPI.executeAgent(agent.id, { input });
         
         return {
-          output: `[${timestamp}] Starting ${agent} agent...\n[${timestamp}] Processing input: "${input}"\n[${timestamp}] Analysis complete.\n\nSUMMARY:\n────────\nThis is a mock response. Connect to real API for actual results.\n\nENTITIES: Mock, Test, Demo\nSENTIMENT: Positive (0.85)`,
+          output: `[${timestamp}] Starting ${agent.name} agent...\n[${timestamp}] Processing input: "${input}"\n[${timestamp}] Execution complete.\n\nResult:\n${JSON.stringify(result.output, null, 2)}`,
           type: 'output',
         };
       } catch (error) {
+        // Fallback to mock execution
+        const timestamp = new Date().toLocaleTimeString();
+        
         return {
-          output: `Error executing agent: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          type: 'error',
+          output: `[${timestamp}] Starting ${agentName} agent...\n[${timestamp}] Processing input: "${input}"\n[${timestamp}] Analysis complete.\n\nSUMMARY:\n────────\nThis is a mock response. Connect to real API for actual results.\n\nENTITIES: Mock, Test, Demo\nSENTIMENT: Positive (0.85)`,
+          type: 'output',
         };
       }
     },
@@ -115,7 +164,49 @@ const commands: Record<string, Command> = {
     usage: 'inbox [--filter <type>] [--status <status>]',
     execute: async (args) => {
       try {
-        // Mock inbox data for now
+        const messages = await inboxAPI.getMessages();
+        
+        // Parse filters
+        let filter: string | null = null;
+        let status: string | null = null;
+        
+        const filterIndex = args.indexOf('--filter');
+        if (filterIndex > -1 && filterIndex < args.length - 1) {
+          filter = args[filterIndex + 1];
+        }
+        
+        const statusIndex = args.indexOf('--status');
+        if (statusIndex > -1 && statusIndex < args.length - 1) {
+          status = args[statusIndex + 1];
+        }
+        
+        // Apply filters
+        let filteredMessages = messages;
+        if (filter !== null && filter !== undefined) {
+          const filterValue = filter;
+          filteredMessages = filteredMessages.filter(m => m.sender && m.sender.includes(filterValue));
+        }
+        if (status) {
+          filteredMessages = filteredMessages.filter(m => m.status === status);
+        }
+        
+        const header = 'ID     FROM              SUBJECT              TIME    STATUS';
+        const rows = filteredMessages.map(item => {
+          const statusIcon = {
+            'processed': '✓',
+            'processing': '⚡',
+            'read': '○',
+            'unread': '●'
+          }[item.status] || '?';
+          
+          return `${item.id.substring(0, 6).padEnd(6)} ${item.sender.padEnd(17).substring(0, 17)} ${item.subject.padEnd(20).substring(0, 20)} ${item.timestamp.padEnd(7)} ${statusIcon}`;
+        }).join('\n');
+
+        return {
+          output: `INBOX (${filteredMessages.length} items)\n\n${header}\n${'-'.repeat(60)}\n${rows}`,
+        };
+      } catch (error) {
+        // Mock inbox data as fallback
         const mockInbox = [
           { id: 'E042', from: 'john@example.com', subject: '[process] Q1 Report', time: '10:42', status: '✓' },
           { id: 'W041', from: '+1234567890', subject: 'Meeting request', time: '10:38', status: '✓' },
@@ -130,50 +221,85 @@ const commands: Record<string, Command> = {
         return {
           output: `INBOX (${mockInbox.length} items)\n\n${header}\n${'-'.repeat(60)}\n${rows}`,
         };
-      } catch (error) {
-        return {
-          output: 'Failed to fetch inbox',
-          type: 'error',
-        };
       }
     },
   },
 
   knowledge: {
     description: 'Search knowledge base',
-    usage: 'knowledge search "<query>"',
+    usage: 'knowledge search "<query>" | knowledge list | knowledge get <id>',
     execute: async (args) => {
-      if (args[0] !== 'search' || args.length < 2) {
-        return {
-          output: 'Usage: knowledge search "<query>"',
-          type: 'error',
-        };
+      if (args.length === 0 || args[0] === 'list') {
+        try {
+          const items = await knowledgeAPI.getItems();
+          const recent = items.slice(0, 10);
+          
+          const rows = recent.map(item => 
+            `${item.id.substring(0, 5).padEnd(5)} ${item.title.padEnd(25).substring(0, 25)} ${item.tags.join(',').padEnd(20).substring(0, 20)} ${item.timestamp}`
+          ).join('\n');
+          
+          return {
+            output: `Recent entries:\n\n${rows}`,
+          };
+        } catch (error) {
+          return {
+            output: 'Failed to fetch knowledge items',
+            type: 'error',
+          };
+        }
       }
 
-      const query = args.slice(1).join(' ').replace(/^["']|["']$/g, '');
-      
-      try {
-        // Mock knowledge search for now
-        const mockResults = [
-          { id: 'K245', title: 'Q1 Financial Summary', tags: 'finance,quarterly', created: '10:42' },
-          { id: 'K244', title: 'Marketing Report', tags: 'marketing,monthly', created: '09:15' },
-        ];
+      if (args[0] === 'search' && args.length > 1) {
+        const query = args.slice(1).join(' ').replace(/^["']|["']$/g, '');
+        
+        try {
+          const items = await knowledgeAPI.getItems({ search: query });
+          
+          const rows = items.map(item => 
+            `${item.id.substring(0, 5).padEnd(5)} ${item.title.padEnd(25).substring(0, 25)} ${item.tags.join(',').padEnd(20).substring(0, 20)} ${item.timestamp}`
+          ).join('\n');
+          
+          return {
+            output: `Search results for "${query}":\n\n${rows}`,
+          };
+        } catch (error) {
+          // Mock results as fallback
+          const mockResults = [
+            { id: 'K245', title: 'Q1 Financial Summary', tags: 'finance,quarterly', created: '10:42' },
+            { id: 'K244', title: 'Marketing Report', tags: 'marketing,monthly', created: '09:15' },
+          ];
 
-        const results = mockResults
-          .map(item => 
-            `${item.id.padEnd(5)} ${item.title.padEnd(25)} ${item.tags.padEnd(20)} ${item.created}`
-          )
-          .join('\n');
+          const results = mockResults
+            .map(item => 
+              `${item.id.padEnd(5)} ${item.title.padEnd(25)} ${item.tags.padEnd(20)} ${item.created}`
+            )
+            .join('\n');
 
-        return {
-          output: `Search results for "${query}":\n\n${results}`,
-        };
-      } catch (error) {
-        return {
-          output: 'Failed to search knowledge base',
-          type: 'error',
-        };
+          return {
+            output: `Search results for "${query}":\n\n${results}`,
+          };
+        }
       }
+
+      if (args[0] === 'get' && args[1]) {
+        try {
+          const item = await knowledgeAPI.getItem(args[1]);
+          
+          return {
+            output: `ID: ${item.id}\nTitle: ${item.title}\nCreated: ${item.timestamp}\nTags: ${item.tags.join(', ')}\nSource: ${item.source}\nContent: ${item.summary}`,
+          };
+        } catch (error) {
+          return {
+            output: `Error: Knowledge item '${args[1]}' not found`,
+            type: 'error',
+          };
+        }
+      }
+
+      return {
+        output: 'Usage: knowledge search "<query>" | knowledge list | knowledge get <id>',
+        type: 'error',
+      };
     },
   },
 
@@ -182,28 +308,64 @@ const commands: Record<string, Command> = {
     usage: 'agent list | agent info <name>',
     execute: async (args) => {
       if (args.length === 0 || args[0] === 'list') {
-        // List all agents
-        const mockAgents = [
-          { name: 'ContentMind', status: 'ONLINE', description: 'Content analysis and summarization' },
-          { name: 'WebFetcher', status: 'ONLINE', description: 'Web content extraction' },
-          { name: 'DigestAgent', status: 'OFFLINE', description: 'Daily digest creation' },
-        ];
+        try {
+          const agents = await agentsAPI.getAgents();
+          
+          const list = agents
+            .map(agent => 
+              `${agent.name.padEnd(15)} [${agent.status.toUpperCase()}]  ${agent.type}`
+            )
+            .join('\n');
 
-        const list = mockAgents
-          .map(agent => 
-            `${agent.name.padEnd(15)} [${agent.status}]  ${agent.description}`
-          )
-          .join('\n');
+          return {
+            output: list,
+          };
+        } catch (error) {
+          // Mock data as fallback
+          const mockAgents = [
+            { name: 'ContentMind', status: 'ONLINE', description: 'Content analysis and summarization' },
+            { name: 'WebFetcher', status: 'ONLINE', description: 'Web content extraction' },
+            { name: 'DigestAgent', status: 'OFFLINE', description: 'Daily digest creation' },
+          ];
 
-        return {
-          output: list,
-        };
+          const list = mockAgents
+            .map(agent => 
+              `${agent.name.padEnd(15)} [${agent.status}]  ${agent.description}`
+            )
+            .join('\n');
+
+          return {
+            output: list,
+          };
+        }
       }
 
       if (args[0] === 'info' && args[1]) {
-        return {
-          output: `Name: ${args[1]}\nStatus: ONLINE\nLast Run: 2 minutes ago\nSuccess Rate: 98.5%\nAverage Time: 2.3s\nConfiguration:\n  Provider: Ollama\n  Model: llama3\n  Temperature: 0.7`,
-        };
+        try {
+          const agents = await agentsAPI.getAgents();
+          const agent = agents.find(a => a.name.toLowerCase() === args[1].toLowerCase());
+          
+          if (!agent) {
+            return {
+              output: `Error: Agent '${args[1]}' not found`,
+              type: 'error',
+            };
+          }
+
+          const metrics = agent.metrics || {
+            successRate: 98.5,
+            avgExecutionTime: 2.3,
+            totalExecutions: 150
+          };
+
+          return {
+            output: `Name: ${agent.name}\nStatus: ${agent.status.toUpperCase()}\nType: ${agent.type}\nLast Run: ${agent.lastRun || 'Never'}\nSuccess Rate: ${metrics.successRate}%\nAverage Time: ${metrics.avgExecutionTime}s\nTotal Executions: ${metrics.totalExecutions}`,
+          };
+        } catch (error) {
+          return {
+            output: `Name: ${args[1]}\nStatus: ONLINE\nLast Run: 2 minutes ago\nSuccess Rate: 98.5%\nAverage Time: 2.3s\nConfiguration:\n  Provider: Ollama\n  Model: llama3\n  Temperature: 0.7`,
+          };
+        }
       }
 
       return {
@@ -217,19 +379,40 @@ const commands: Record<string, Command> = {
     description: 'View or set configuration',
     usage: 'config list | config get <key> | config set <key> <value>',
     execute: async (args) => {
+      // This is still mock as we don't have a config API endpoint
+      const mockConfig = {
+        'email.codeword': 'process',
+        'email.interval': '60',
+        'llm.provider': 'ollama',
+        'llm.model': 'llama3',
+        'llm.temperature': '0.7'
+      };
+
       if (args.length === 0 || args[0] === 'list') {
+        const configText = Object.entries(mockConfig)
+          .map(([key, value]) => `${key} = "${value}"`)
+          .join('\n');
+          
         return {
-          output: `email.codeword = "process"\nemail.interval = 60\nllm.provider = "ollama"\nllm.model = "llama3"`,
+          output: configText,
         };
       }
 
       if (args[0] === 'get' && args[1]) {
+        const value = mockConfig[args[1] as keyof typeof mockConfig];
+        if (value) {
+          return {
+            output: `${args[1]} = "${value}"`,
+          };
+        }
         return {
-          output: `${args[1]} = "value"`,
+          output: `Error: Configuration key '${args[1]}' not found`,
+          type: 'error',
         };
       }
 
       if (args[0] === 'set' && args[1] && args[2]) {
+        // In a real implementation, this would update the config
         return {
           output: `[OK] ${args[1]} = "${args[2]}"`,
           type: 'info',

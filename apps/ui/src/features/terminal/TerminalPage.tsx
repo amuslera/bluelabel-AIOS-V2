@@ -3,7 +3,7 @@ import { Terminal } from '../../components/Terminal/Terminal';
 
 export const TerminalPage: React.FC = () => {
   return (
-    <div className="h-[calc(100vh-200px)]">
+    <div className="h-[calc(100vh-280px)]">
       <Terminal />
     </div>
   );

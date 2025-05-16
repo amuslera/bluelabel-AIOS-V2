@@ -36,17 +36,24 @@ export const CommandInput: React.FC<CommandInputProps> = ({
 
   return (
     <div className="flex items-center">
-      <span className="text-terminal-cyan mr-2 retro-glow">{prompt}</span>
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="flex-1 bg-transparent border-none outline-none text-terminal-cyan font-terminal"
-        autoFocus
-      />
-      <span className="text-terminal-cyan animate-blink retro-glow">_</span>
+      <span className="text-terminal-cyan mr-2">{prompt}</span>
+      <div className="relative flex-1">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full bg-transparent border-none outline-none text-terminal-cyan font-terminal pr-4"
+          autoFocus
+        />
+        <span 
+          className="text-terminal-cyan animate-blink absolute" 
+          style={{ left: `${value.length}ch` }}
+        >
+          _
+        </span>
+      </div>
     </div>
   );
 };

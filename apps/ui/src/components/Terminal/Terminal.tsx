@@ -86,25 +86,26 @@ export const Terminal: React.FC = () => {
 
   return (
     <div className="border-2 border-terminal-cyan p-4 ascii-border bg-terminal-dark h-full flex flex-col">
-      <div className="text-terminal-cyan mb-4 text-lg font-bold retro-glow">
+      <div className="text-terminal-cyan mb-2 text-xl font-bold">
         TERMINAL
       </div>
       
       <div 
         ref={outputRef}
-        className="flex-1 overflow-y-auto mb-4 space-y-1"
+        className="flex-1 overflow-y-auto space-y-0"
       >
         {history.map((line, index) => (
           <OutputLine key={index} {...line} />
         ))}
+        <div className="mt-2">
+          <CommandInput
+            value={input}
+            onChange={setInput}
+            onSubmit={handleSubmit}
+            onHistoryNavigate={handleHistoryNavigate}
+          />
+        </div>
       </div>
-      
-      <CommandInput
-        value={input}
-        onChange={setInput}
-        onSubmit={handleSubmit}
-        onHistoryNavigate={handleHistoryNavigate}
-      />
     </div>
   );
 };

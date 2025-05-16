@@ -19,7 +19,7 @@ export const OutputLine: React.FC<OutputLineProps> = ({
   const getColorClass = () => {
     switch (type) {
       case 'command':
-        return 'text-terminal-cyan retro-glow';
+        return 'text-terminal-cyan';
       case 'error':
         return 'text-error-pink';
       case 'info':

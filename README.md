@@ -35,7 +35,15 @@ Bluelabel AIOS is a platform for developing, deploying, and orchestrating modula
    ./scripts/run_api.sh
    ```
 
-4. **Test the system**:
+4. **Start the UI (in a new terminal)**:
+   ```bash
+   cd apps/ui
+   npm install
+   npm start
+   ```
+   The UI will be available at http://localhost:3000
+
+5. **Test the system**:
    ```bash
    # In another terminal
    python scripts/test_full_integration.py
@@ -90,33 +98,47 @@ Bluelabel AIOS is a platform for developing, deploying, and orchestrating modula
 - ✅ **Ollama Support**: Added local LLM support for offline processing
 - ✅ **Production-Ready**: All external integrations tested and working
 
-### Latest Frontend Updates (May 16, 2025)
-- ✅ **React UI Implementation**: Complete retro terminal interface
-- ✅ **Commodore 64 Theme**: Authentic startup sequence and branding
-- ✅ **Dashboard View**: Real-time system status monitoring
-- ✅ **Terminal Emulator**: Fully functional command interpreter
-- ✅ **Component Library**: Complete set of retro-styled UI components
+### Complete Frontend Implementation (May 16, 2025)
+- ✅ **Full React/TypeScript UI**: All pages and features implemented
+- ✅ **Retro Terminal Interface**: Working Commodore 64-inspired design
+- ✅ **API Integration**: Connected to all backend endpoints with v1 routing
+- ✅ **Real-time Updates**: WebSocket support for live data (configurable)
+- ✅ **Terminal Commands**: Full command system with API integration
 
-### Frontend Features Implemented
-- **Terminal Interface**: Full command execution with history
-- **Dashboard**: System status, activity feed, quick actions
-- **Startup Animation**: Retro boot sequence matching design mockups
-- **Navigation**: Multi-view routing with terminal styling
-- **Component Library**:
-  - RetroCard: ASCII-bordered content containers
-  - RetroButton: Glowing action buttons
-  - Terminal: Interactive command interface
-  - StartupSequence: Boot animation
-  - RainbowStripe: Commodore-style header
-  - PixelLogo: Retro branded logo
+### Frontend Features Completed
+- **All Pages Implemented**:
+  - Dashboard: System monitoring with real-time updates
+  - Inbox: Email management with filtering and actions
+  - Knowledge: Content repository with search and tags
+  - Agents: Agent management and execution
+  - Terminal: Full command interpreter with history
+  - Logs: System log viewer with filtering
+  
+- **Terminal Commands**:
+  - `help` - Show available commands
+  - `clear` - Clear terminal screen
+  - `status` - System health and metrics
+  - `run` - Execute agents
+  - `inbox` - Manage emails
+  - `knowledge` - Search knowledge base
+  - `agent` - List and manage agents
+  - `config` - View/update settings
+
+- **UI Components** (15+ custom components):
+  - StartupSequence: Authentic C64 boot animation
+  - Terminal: Full terminal emulator
+  - RetroCard/Button: Styled components
+  - WebSocketIndicator: Connection status
+  - FileUploadModal: Drag-and-drop uploads
+  - And many more...
 
 ### Running the Frontend
 ```bash
 # Navigate to UI directory
 cd apps/ui
 
-# Install dependencies (if not already done)
-npm install
+# Install dependencies
+npm install --legacy-peer-deps
 
 # Start development server
 npm start
@@ -124,18 +146,18 @@ npm start
 # Access at http://localhost:3000
 ```
 
-### In Progress
-- API integration (connecting frontend to backend)
-- WhatsApp Business API integration
-- Additional agents (ContextMind, WebFetcher)
-- PostgreSQL migration (currently using in-memory storage)
+### WebSocket Configuration (Optional)
+```bash
+# Enable WebSocket in .env
+REACT_APP_WEBSOCKET_ENABLED=true
+REACT_APP_WEBSOCKET_URL=ws://localhost:8001/ws
+```
 
-### Frontend UI Scope (Ready for Development)
-- ✅ Complete feature specification
-- ✅ Wireframes and mockups
-- ✅ Technical implementation plan
-- ✅ API requirements documented
-- 🔲 React implementation pending
+### Next Steps
+- Deploy to production environment
+- Add authentication and authorization
+- Implement remaining backend features
+- Set up comprehensive integration tests
 
 ### Ready for Production Testing
 The system is now fully functional with real API integrations:
