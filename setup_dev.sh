@@ -98,7 +98,7 @@ echo
 
 # Verify setup
 echo "8. Verifying setup..."
-python scripts/verify_setup.py
+python3 scripts/verify_setup.py
 echo
 
 # Instructions
@@ -112,7 +112,7 @@ echo "1. Activate the virtual environment:"
 echo "   source .venv/bin/activate"
 echo
 echo "2. Start the API server with logging:"
-echo "   python scripts/run_with_logging.py"
+echo "   python3 scripts/run_with_logging.py"
 echo
 echo "3. Or use uvicorn directly:"
 echo "   uvicorn apps.api.main:app --reload"
@@ -131,5 +131,5 @@ read -p "Would you like to start the API server now? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Starting API server..."
-    python scripts/run_with_logging.py
+    python3 scripts/run_with_logging.py
 fi

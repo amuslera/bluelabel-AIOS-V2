@@ -35,7 +35,7 @@ fi
 
 # Create initial MCP components and templates
 echo "Creating initial MCP components and templates..."
-python -c "
+python3 -c "
 # Create initial MCP components and templates
 from services.mcp.prompt_manager import MCPManager
 

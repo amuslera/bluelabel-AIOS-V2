@@ -65,7 +65,7 @@ echo "2. Install dependencies:"
 echo "   pip install -r requirements.txt"
 echo
 echo "3. Run API server:"
-echo "   python scripts/run_with_logging.py"
+echo "   python3 scripts/run_with_logging.py"
 echo
 echo "4. Or run directly:"
 echo "   uvicorn apps.api.main:app --reload"

@@ -214,7 +214,7 @@ async def main():
 if __name__ == "__main__":
     # First, make sure the API server is running
     print("Make sure the API server is running at http://localhost:8000")
-    print("Start it with: python scripts/run_with_logging.py")
+    print("Start it with: python3 scripts/run_with_logging.py")
     print()
     
     # Run tests

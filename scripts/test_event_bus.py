@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test script for the Redis Event Bus
@@ -8,7 +8,7 @@ a simple producer and consumer that exchange messages. It can work with a real
 Redis server if available, or fall back to a simulated mode for testing.
 
 Usage:
-    python test_event_bus.py [--simulate]
+    python3 test_event_bus.py [--simulate]
 
 Options:
     --simulate    Run in simulation mode without requiring Redis

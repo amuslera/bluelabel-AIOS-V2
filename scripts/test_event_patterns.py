@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Comprehensive Test Script for Enhanced Event Bus
@@ -7,7 +7,7 @@ This script demonstrates the enhanced functionality of the Redis event bus,
 including different message patterns, error handling, and metrics.
 
 Usage:
-    python test_event_patterns.py [--simulate]
+    python3 test_event_patterns.py [--simulate]
 
 Options:
     --simulate    Run in simulation mode without requiring Redis

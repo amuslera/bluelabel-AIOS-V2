@@ -1,10 +1,12 @@
 from typing import Dict, Any, List, Optional, Type, Callable
 from .base import Agent
 from .content_mind import ContentMindAgent
+from .gateway_agent import GatewayAgent
 
 # Registry of agent types to agent classes
 _AGENT_REGISTRY: Dict[str, Type[Agent]] = {
-    "content_mind": ContentMindAgent
+    "content_mind": ContentMindAgent,
+    "gateway": GatewayAgent
 }
 
 # Cache of agent instances
@@ -38,7 +40,10 @@ def get_agent(agent_type: str) -> Optional[Agent]:
     
     # Create instance
     agent_class = _AGENT_REGISTRY[agent_type]
-    agent = agent_class(name=agent_type, description=f"{agent_type} Agent")
+    if agent_type == "gateway":
+        agent = agent_class(name=agent_type)
+    else:
+        agent = agent_class(name=agent_type, description=f"{agent_type} Agent")
     
     # Cache instance
     _AGENT_INSTANCES[agent_type] = agent

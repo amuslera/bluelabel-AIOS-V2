@@ -173,7 +173,7 @@ def main():
     if passed == total:
         print(status_msg("\n✅ Environment ready for development!", "ok"))
         print("\nTo start the API server:")
-        print("  python scripts/run_with_logging.py")
+        print("  python3 scripts/run_with_logging.py")
         print("\nOr:")
         print("  uvicorn apps.api.main:app --reload")
     else:

@@ -6,6 +6,21 @@ All notable changes to the Bluelabel AIOS v2 project will be documented in this 
 
 ### Added
 
+#### Gmail Gateway Implementation
+- Implemented Gmail Direct Gateway with OAuth 2.0 authentication
+- Added OAuth server for handling Google authentication flow
+- Created comprehensive Gmail integration test script
+- Added support for sending and fetching emails via Gmail API
+- Implemented automatic token refresh handling
+- Created event-driven email processing with EventBus
+- Added Gmail setup documentation and consolidated integration guide
+
+### Changed
+- Updated requirements.txt with Google API client dependencies
+- Enhanced gateway service structure with Gmail implementation
+
+### Added
+
 #### Basic API Service with Agent and Event Endpoints
 - Implemented comprehensive agent API endpoints
 - Added endpoints for listing, executing, and monitoring agents

@@ -83,7 +83,7 @@ bluelabel-aios-v2/
 - [x] Agent Runtime Manager
 - [x] Basic API service endpoints
 - [x] `ContentMind` Agent
-- [ ] Email Gateway with OAuth
+- [x] Email Gateway with Gmail OAuth 2.0
 - [ ] Knowledge Repository (PostgreSQL + Chroma)
 - [ ] End-to-end test: Email → Digest → Email
 
@@ -122,7 +122,7 @@ cp .env.example .env
 # Edit .env with your settings
 
 # 4. Start the API server
-python scripts/run_with_logging.py
+python3 scripts/run_with_logging.py
 # Or: uvicorn apps.api.main:app --reload
 ```
 
@@ -130,7 +130,7 @@ python scripts/run_with_logging.py
 
 ```bash
 # Check if everything is configured correctly
-python scripts/verify_setup.py
+python3 scripts/verify_setup.py
 
 # Quick environment check
 ./scripts/check_dev_tools.sh
