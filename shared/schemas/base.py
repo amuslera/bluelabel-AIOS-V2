@@ -2,6 +2,16 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 import uuid
 from datetime import datetime
+from enum import Enum
+
+
+class AgentType(Enum):
+    """Available agent types in the system"""
+    CONTENT_MIND = "content_mind"
+    CONTEXT_MIND = "context_mind"
+    GATEWAY = "gateway"
+    WEB_FETCHER = "web_fetcher"
+    OUTREACH_ASSISTANT = "outreach_assistant"
 
 
 class TaskSchema(BaseModel):

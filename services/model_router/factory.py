@@ -58,7 +58,7 @@ async def create_default_router(
             config = LLMProviderConfig(
                 provider_name="anthropic",
                 api_key=anthropic_key,
-                model_name=os.getenv("ANTHROPIC_MODEL", "claude-3-sonnet"),
+                model_name=os.getenv("ANTHROPIC_MODEL", "claude-3-opus"),
                 max_tokens=int(os.getenv("ANTHROPIC_MAX_TOKENS", "2000")),
                 temperature=float(os.getenv("ANTHROPIC_TEMPERATURE", "0.7"))
             )
@@ -69,12 +69,12 @@ async def create_default_router(
     
     # Configure Gemini
     if "gemini" in include_providers and "gemini" not in exclude_providers:
-        gemini_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        gemini_key = os.getenv("GOOGLE_GENERATIVEAI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
         if gemini_key:
             config = LLMProviderConfig(
                 provider_name="gemini",
                 api_key=gemini_key,
-                model_name=os.getenv("GEMINI_MODEL", "gemini-pro"),
+                model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
                 max_tokens=int(os.getenv("GEMINI_MAX_TOKENS", "2000")),
                 temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.7"))
             )
