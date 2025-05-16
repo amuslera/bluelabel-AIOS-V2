@@ -1,18 +1,36 @@
 from typing import Dict, Any, List, Optional, Type, Callable
 from .base import Agent
-from .content_mind import ContentMindAgent
+from .content_mind import ContentMind
 from .content_mind_llm import ContentMindLLM
 from .gateway_agent import GatewayAgent
 
 # Registry of agent types to agent classes
 _AGENT_REGISTRY: Dict[str, Type[Agent]] = {
-    "content_mind": ContentMindAgent,
+    "content_mind": ContentMind,
     "content_mind_llm": ContentMindLLM,
     "gateway": GatewayAgent
 }
 
 # Cache of agent instances
 _AGENT_INSTANCES: Dict[str, Agent] = {}
+
+class AgentRegistry:
+    """Registry for managing agent classes and instances"""
+    
+    def __init__(self):
+        pass
+        
+    def register_agent(self, agent_type: str, agent_class: Type[Agent]) -> None:
+        """Register an agent type"""
+        return register_agent(agent_type, agent_class)
+    
+    async def get_agent(self, agent_type: str) -> Optional[Agent]:
+        """Get an agent instance by type"""
+        return get_agent(agent_type)
+    
+    def list_agents(self) -> List[Dict[str, Any]]:
+        """List all registered agent types"""
+        return list_agents()
 
 def register_agent(agent_type: str, agent_class: Type[Agent]) -> None:
     """Register an agent type

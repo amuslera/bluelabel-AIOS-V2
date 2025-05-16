@@ -75,6 +75,14 @@ class Settings(BaseModel):
     @property
     def DEFAULT_LLM_PROVIDER(self) -> str:
         return self.llm.default_provider
+    
+    @property
+    def DATABASE_URL(self) -> str:
+        return self.database.url
+    
+    @property
+    def REDIS_SIMULATION_MODE(self) -> bool:
+        return os.getenv("REDIS_SIMULATION_MODE", "true").lower() == "true"
 
 
 # Create global config instances

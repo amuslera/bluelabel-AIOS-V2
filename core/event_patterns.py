@@ -5,6 +5,22 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+class EventMetadata(BaseModel):
+    """Metadata for all events"""
+    event_id: str
+    event_type: str
+    event_version: str = "1.0"
+    timestamp: datetime
+    tenant_id: Optional[str] = None
+    correlation_id: Optional[str] = None
+    causation_id: Optional[str] = None
+    user_id: Optional[str] = None
+
+class Event(BaseModel):
+    """Base event model for all system events"""
+    metadata: EventMetadata
+    payload: Dict[str, Any]
+
 class MessagePattern(str, Enum):
     """Common message exchange patterns"""
     PUBLISH_SUBSCRIBE = "publish_subscribe"  # One-to-many broadcast
