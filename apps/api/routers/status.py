@@ -5,6 +5,8 @@ Implements RULES.md #4: Workflow status must be queryable
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, List
 from datetime import datetime, timedelta
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from shared.schemas.base import User
 from services.knowledge.repository import get_knowledge_repository
@@ -220,7 +222,7 @@ async def get_processing_queue(
 async def get_analytics_summary(
     current_user: User = Depends(get_current_user),
     days: int = Query(7, ge=1, le=30),
-    db = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
     Get analytics summary for the user.
@@ -234,42 +236,42 @@ async def get_analytics_summary(
     since = datetime.utcnow() - timedelta(days=days)
     
     # Get file stats
-    file_stats = await db.fetch_one(
-        """
+    file_stats = db.execute(
+        text("""
         SELECT 
             COUNT(*) as total_files,
             SUM(size) as total_size
         FROM files 
         WHERE user_id = :user_id AND created_at >= :since
-        """,
+        """),
         {"user_id": current_user.id, "since": since}
-    )
+    ).first()
     
     # Get digest stats
-    digest_stats = await db.fetch_one(
-        """
+    digest_stats = db.execute(
+        text("""
         SELECT COUNT(*) as total_digests
         FROM digests 
         WHERE user_id = :user_id AND created_at >= :since
-        """,
+        """),
         {"user_id": current_user.id, "since": since}
-    )
+    ).first()
     
     # Get token usage (if tracked)
-    token_stats = await db.fetch_one(
-        """
+    token_stats = db.execute(
+        text("""
         SELECT SUM(tokens_used) as total_tokens
         FROM llm_usage 
         WHERE user_id = :user_id AND created_at >= :since
-        """,
+        """),
         {"user_id": current_user.id, "since": since}
-    )
+    ).first()
     
     return {
         "period_days": days,
-        "files_processed": file_stats["total_files"] or 0,
-        "digests_generated": digest_stats["total_digests"] or 0,
-        "total_tokens": token_stats["total_tokens"] or 0,
-        "storage_used_bytes": file_stats["total_size"] or 0,
-        "storage_used_mb": round((file_stats["total_size"] or 0) / (1024 * 1024), 2)
+        "files_processed": file_stats.total_files or 0 if file_stats else 0,
+        "digests_generated": digest_stats.total_digests or 0 if digest_stats else 0,
+        "total_tokens": token_stats.total_tokens or 0 if token_stats else 0,
+        "storage_used_bytes": file_stats.total_size or 0 if file_stats else 0,
+        "storage_used_mb": round((file_stats.total_size or 0) / (1024 * 1024), 2) if file_stats else 0
     }

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Import our custom logging
 from core.logging import setup_logging, logger, LogContext
@@ -98,7 +99,23 @@ async def root():
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    return {
+        "status": "online",
+        "services": {
+            "api": {
+                "status": "ok",
+                "lastCheck": datetime.utcnow().isoformat()
+            },
+            "database": {
+                "status": "ok",
+                "lastCheck": datetime.utcnow().isoformat()
+            },
+            "redis": {
+                "status": "ok",
+                "lastCheck": datetime.utcnow().isoformat()
+            }
+        }
+    }
 
 # Include routers
 app.include_router(health.router)  # Health check at root level

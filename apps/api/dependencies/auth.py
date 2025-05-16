@@ -2,12 +2,13 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from shared.schemas.base import User
 from typing import Optional
+import uuid
 
 # Security scheme
 security = HTTPBearer()
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = None
 ) -> User:
     """
     Dependency to get the current authenticated user.
@@ -20,9 +21,9 @@ async def get_current_user(
     # For MVP, we'll create a mock user
     # TODO: Implement proper JWT validation
     return User(
-        id="user_123",
+        id=str(uuid.uuid4()),
         email="ariel@example.com",
-        tenant_id="tenant_456"
+        tenant_id=str(uuid.uuid4())
     )
 
 def get_optional_current_user(

@@ -14,8 +14,17 @@ export const Agents: React.FC = () => {
     const fetchAgents = async () => {
       try {
         const data = await agentsAPI.getAgents();
-        setAgents(data);
+        // Transform backend data to match frontend expectations
+        const transformedData: Agent[] = data.map((agent: any) => ({
+          id: agent.agent_id || agent.id,
+          name: agent.name || agent.agent_id || 'Unknown',
+          type: agent.capabilities?.type || 'agent',
+          status: (agent.instantiated ? 'active' : 'inactive') as 'active' | 'inactive' | 'error',
+          lastRun: agent.metrics?.last_run || 'Never'
+        }));
+        setAgents(transformedData);
       } catch (err) {
+        console.error('Error fetching agents:', err);
         // Fallback to mock data
         setAgents([
           { id: '1', name: 'ContentMind', type: 'content', status: 'active', lastRun: '5 min ago' },
@@ -43,16 +52,16 @@ export const Agents: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {agents.map(agent => (
-          <RetroCard key={agent.id} title={agent.name.toUpperCase()}>
+          <RetroCard key={agent.id} title={(agent.name || 'UNKNOWN').toUpperCase()}>
             <div className="space-y-3">
               <div>
                 <span className="text-terminal-cyan/70">TYPE:</span>
-                <div className="text-terminal-cyan">{agent.type.toUpperCase()}</div>
+                <div className="text-terminal-cyan">{(agent.type || 'agent').toUpperCase()}</div>
               </div>
               <div>
                 <span className="text-terminal-cyan/70">STATUS:</span>
                 <div className={agent.status === 'active' ? 'text-terminal-green' : 'text-terminal-amber'}>
-                  [{agent.status.toUpperCase()}]
+                  [{(agent.status || 'inactive').toUpperCase()}]
                 </div>
               </div>
               <div>
@@ -73,7 +82,7 @@ export const Agents: React.FC = () => {
       </div>
 
       {selectedAgent && (
-        <RetroCard title={`EXECUTE ${selectedAgent.name.toUpperCase()}`}>
+        <RetroCard title={`EXECUTE ${(selectedAgent.name || 'UNKNOWN').toUpperCase()}`}>
           <div className="text-terminal-cyan mb-4">
             Agent execution interface would appear here
           </div>
