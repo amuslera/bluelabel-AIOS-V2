@@ -9,6 +9,7 @@ from .base import LLMProvider, LLMProviderConfig, LLMResponse, EmbeddingResponse
 from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
 from .gemini_provider import GeminiProvider
+from .ollama_provider import OllamaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class ModelRouter:
         ProviderType.OPENAI: OpenAIProvider,
         ProviderType.ANTHROPIC: AnthropicProvider,
         ProviderType.GEMINI: GeminiProvider,
-        # Future: OllamaProvider
+        ProviderType.OLLAMA: OllamaProvider,
     }
     
     def __init__(self):

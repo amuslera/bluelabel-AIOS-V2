@@ -28,6 +28,18 @@ All notable changes to the Bluelabel AIOS v2 project will be documented in this 
   - Added test scripts for LLM-powered content processing
   - Demonstrated complete MVP workflow with real services
 
+- **Email Filtering with Codeword Trigger**
+  - Added email filtering mechanism to prevent automatic processing of all emails
+  - Only emails with [codeword] in subject line are now processed
+  - Made trigger codeword configurable via EMAIL_TRIGGER_CODEWORD environment variable
+  - Updated EmailGateway to check for codeword pattern in email subjects
+  - Enhanced email listener to skip emails without proper trigger
+
+- **Code Cleanup and Organization**
+  - Removed development test scripts and experimental files
+  - Cleaned up project structure and organized documentation
+  - Updated .gitignore to exclude sensitive data and temporary files
+
 ### Changed
 
 - Updated ContentMind agent to use ModelRouter for real LLM calls

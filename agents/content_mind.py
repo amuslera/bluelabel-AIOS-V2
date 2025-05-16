@@ -48,7 +48,33 @@ class ContentMind(Agent):
         
         # Try to add available providers
         try:
-            # Try Anthropic first
+            # Try Ollama first (local provider)
+            from services.model_router.ollama_provider import OllamaProvider
+            import httpx
+            ollama_base = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
+            
+            # Check if Ollama is running
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(f"{ollama_base}/api/tags", timeout=2.0)
+                    if response.status_code == 200:
+                        ollama_config = LLMProviderConfig(
+                            provider_name="ollama",
+                            api_key="",  # Ollama doesn't need API key
+                            model_name="llama3",
+                            max_tokens=1000,
+                            temperature=0.7,
+                            metadata={"api_base": ollama_base}
+                        )
+                        await router.add_provider(ProviderType.OLLAMA, ollama_config)
+                        self.logger.info("Added Ollama provider to model router")
+            except:
+                self.logger.debug("Ollama not available")
+        except Exception as e:
+            self.logger.warning(f"Could not add Ollama provider: {e}")
+        
+        try:
+            # Try Anthropic
             from services.model_router.anthropic_provider import AnthropicProvider
             anthropic_key = os.getenv("ANTHROPIC_API_KEY")
             if anthropic_key:

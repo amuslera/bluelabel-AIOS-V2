@@ -73,7 +73,7 @@ Bluelabel AIOS is a platform for developing, deploying, and orchestrating modula
 ### Completed Components
 - **Core Framework**: Event Bus, Configuration, Logging
 - **API Service**: FastAPI server with comprehensive endpoints
-- **LLM Integration**: Multi-provider support (OpenAI, Anthropic, Gemini) with smart routing
+- **LLM Integration**: Multi-provider support (OpenAI, Anthropic, Gemini, Ollama) with smart routing
 - **Gmail OAuth**: Full OAuth 2.0 implementation with complete authentication flow
 - **Knowledge Repository**: In-memory + file storage with search capabilities
 - **MCP Framework**: Complete prompt management system
@@ -86,6 +86,8 @@ Bluelabel AIOS is a platform for developing, deploying, and orchestrating modula
 - ✅ **Gmail Authentication**: Successfully connected to a@bluelabel.ventures via OAuth
 - ✅ **Full MVP Demo**: Email → AI Processing → Knowledge Storage → Summary generation
 - ✅ **Stable API Server**: Running with proper background execution
+- ✅ **Email Filtering**: Only emails with [codeword] in subject are processed
+- ✅ **Ollama Support**: Added local LLM support for offline processing
 - ✅ **Production-Ready**: All external integrations tested and working
 
 ### In Progress
@@ -119,7 +121,37 @@ GOOGLE_CLIENT_ID=your_oauth_client_id
 GOOGLE_CLIENT_SECRET=your_oauth_client_secret
 GOOGLE_REDIRECT_URI=http://localhost:8081/gateway/google/callback
 GMAIL_TOKEN_FILE=data/gmail_token.json
+EMAIL_TRIGGER_CODEWORD=process
+OLLAMA_API_BASE=http://localhost:11434
 ```
+
+### Email Processing Filter
+The system now filters incoming emails to avoid processing all messages automatically. Only emails containing a specific codeword in square brackets in the subject line will be processed.
+
+Example:
+- ✅ Processed: "Please analyze this document [process]"
+- ❌ Skipped: "Regular email without codeword"
+- ✅ Processed: "[process] Check this article"
+
+The default codeword is "process" but can be configured via the `EMAIL_TRIGGER_CODEWORD` environment variable.
+
+### Local LLM with Ollama
+To use local LLM processing with Ollama:
+
+```bash
+# Install and setup Ollama
+./scripts/setup_ollama.sh
+
+# The script will:
+# - Install Ollama (macOS/Linux)
+# - Start the Ollama service
+# - Pull recommended models (llama3, mistral, codellama)
+
+# Test Ollama is working
+curl http://localhost:11434/api/generate -d '{"model": "llama3", "prompt": "Hello"}'
+```
+
+Ollama is automatically detected and used as the primary provider when available, providing fast local LLM processing without API keys.
 
 ---
 

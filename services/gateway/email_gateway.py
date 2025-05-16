@@ -22,6 +22,7 @@ class EmailGateway:
         self.username = config.email.username
         self.password = config.email.password
         self.use_tls = config.email.use_tls
+        self.trigger_codeword = os.getenv('EMAIL_TRIGGER_CODEWORD', 'process')
         
         # Connect to event bus if provided
         self.event_bus = event_bus or EventBus()
@@ -130,19 +131,38 @@ class EmailGateway:
             print(f"Error checking inbox: {str(e)}")
             return []
     
-    def process_incoming_email(self, email_data: Dict[str, Any]) -> str:
+    def process_incoming_email(self, email_data: Dict[str, Any]) -> Optional[str]:
         """Process an incoming email and publish to event bus
         
         Args:
             email_data: Email data dictionary
             
         Returns:
-            Task ID for the created task
+            Task ID for the created task, or None if email should not be processed
         """
         # Extract data from email
         sender = email_data.get("from", "")
         subject = email_data.get("subject", "")
         body = email_data.get("body", "")
+        
+        # Check for codeword in subject
+        import re
+        codeword_pattern = r'\[(\w+)\]'  # Matches [codeword] in subject
+        match = re.search(codeword_pattern, subject)
+        
+        if not match:
+            # No codeword found, skip processing
+            print(f"Skipping email '{subject}' - no trigger codeword found")
+            return None
+        
+        codeword = match.group(1)
+        
+        # Optionally, check if specific codeword matches required one
+        if self.trigger_codeword and codeword.lower() != self.trigger_codeword.lower():
+            print(f"Skipping email with codeword [{codeword}] - expected [{self.trigger_codeword}]")
+            return None
+            
+        print(f"Processing email with codeword: [{codeword}]")
         
         # Extract URL or content from body
         # This is a simple implementation - in a real system, you'd use regex or NLP
@@ -201,10 +221,12 @@ class EmailGateway:
                             continue
                         
                         # Process email
-                        self.process_incoming_email(email_data)
+                        task_id = self.process_incoming_email(email_data)
                         
-                        # Add to processed set
-                        last_processed_ids.add(email_id)
+                        # Add to processed set only if email was processed
+                        if task_id:
+                            last_processed_ids.add(email_id)
+                            print(f"Processed email {email_id} with task ID: {task_id}")
                     
                     # Limit the size of the processed set
                     if len(last_processed_ids) > 100:
