@@ -83,8 +83,36 @@ class Settings(BaseModel):
     @property
     def REDIS_SIMULATION_MODE(self) -> bool:
         return os.getenv("REDIS_SIMULATION_MODE", "true").lower() == "true"
+    
+    @property
+    def LLM_ENABLED(self) -> bool:
+        return os.getenv("LLM_ENABLED", "false").lower() == "true"
+    
+    @property
+    def OPENAI_API_KEY(self) -> Optional[str]:
+        return self.llm.openai_api_key
+    
+    @property
+    def GOOGLE_GENERATIVEAI_API_KEY(self) -> Optional[str]:
+        return os.getenv("GOOGLE_GENERATIVEAI_API_KEY")
+    
+    @property
+    def REDIS_URL(self) -> str:
+        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.db}"
+    
+    @property
+    def MAX_FILE_SIZE_MB(self) -> int:
+        return int(os.getenv("MAX_FILE_SIZE_MB", "100"))
+    
+    @property
+    def JWT_SECRET_KEY(self) -> str:
+        return os.getenv("JWT_SECRET_KEY", "insecure-development-key-change-in-production")
 
 
 # Create global config instances
 config = Settings()
 settings = config  # Alias for compatibility with architecture.md
+
+def get_settings() -> Settings:
+    """Get the global settings instance"""
+    return settings

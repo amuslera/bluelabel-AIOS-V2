@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
@@ -8,8 +8,13 @@ from dotenv import load_dotenv
 from core.logging import setup_logging, logger, LogContext
 from core.config import config
 
+# Import middleware
+from apps.api.middleware.error_handler import register_error_handlers
+from apps.api.middleware.request_id import request_id_middleware
+from core.config_validator import validate_config_on_startup
+
 # Import routers
-from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication, workflows
+from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication, workflows, files, status, health
 
 # Load environment variables
 load_dotenv()
@@ -38,8 +43,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add request ID middleware
+@app.middleware("http")
+async def add_request_id_middleware(request: Request, call_next):
+    return await request_id_middleware(request, call_next)
+
+# Register error handlers
+register_error_handlers(app)
+
 # Add request logging middleware
-from fastapi import Request
 import time
 
 @app.middleware("http")
@@ -68,6 +80,9 @@ async def startup_event():
     logger.info("Starting Bluelabel AIOS v2 API")
     logger.info(f"Debug mode: {config.debug}")
     logger.info(f"Log level: {config.logging.level}")
+    
+    # Validate configuration
+    validate_config_on_startup()
 
 # Shutdown event
 @app.on_event("shutdown")
@@ -86,6 +101,9 @@ async def health_check():
     return {"status": "ok"}
 
 # Include routers
+app.include_router(health.router)  # Health check at root level
+app.include_router(files.router)  # Files at /api/v1/files
+app.include_router(status.router)  # Status at /api/v1/status
 app.include_router(gateway.router, prefix="/api/v1/gateway", tags=["gateway"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])

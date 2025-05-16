@@ -43,6 +43,12 @@ class ContentSchema(BaseModel):
     vector_id: Optional[str] = None
 
 
+class User(BaseModel):
+    """User model for authentication"""
+    id: str
+    email: str
+    tenant_id: str
+
 class UserSchema(BaseModel):
     """Schema for a user in the system"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

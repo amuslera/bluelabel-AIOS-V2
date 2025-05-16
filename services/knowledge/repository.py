@@ -308,3 +308,13 @@ class KnowledgeRepository:
         
         # Apply pagination
         return filtered_items[offset:offset+limit]
+
+# Singleton instance
+_knowledge_repository = None
+
+def get_knowledge_repository() -> KnowledgeRepository:
+    """Get the global knowledge repository instance"""
+    global _knowledge_repository
+    if _knowledge_repository is None:
+        _knowledge_repository = KnowledgeRepository()
+    return _knowledge_repository
