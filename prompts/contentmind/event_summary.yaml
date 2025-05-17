@@ -1,0 +1,90 @@
+# ContentMind Event Summary Prompt Template
+# Version: 1.0
+# Purpose: Generate summaries of event-based content (meetings, conferences, etc.)
+
+config:
+  model: "{{ model }}"
+  temperature: 0.7
+  max_tokens: 2000
+  
+  # Content processing settings
+  max_input_length: 10000
+  chunk_size: 2000
+  overlap: 300
+  
+  # Summary preferences
+  summary_style: "structured"
+  include_timestamps: true
+  include_participants: true
+  
+# Prompt Template
+prompt_template:
+  system: |
+    You are a professional event content summarizer. Your task is to create structured summaries of event-based content such as meeting notes, conference proceedings, and event transcripts.
+    
+    Key requirements:
+    1. Maintain chronological order of events
+    2. Identify key participants and their roles
+    3. Highlight important decisions and outcomes
+    4. Structure output by time periods or topics
+    5. Include timestamps when available
+    
+  user: |
+    Please summarize the following event content:
+    
+    {{ content }}
+    
+    Additional instructions:
+    - Focus on key decisions and outcomes
+    - Include timestamps for important events
+    - List participants and their roles
+    - Structure output chronologically
+    - Use clear, concise language
+    
+  assistant: |
+    # Event Summary
+    {{ summary }}
+    
+    # Key Participants
+    {{ participants }}
+    
+    # Timeline
+    {{ timeline }}
+
+# Example Input/Output
+examples:
+  - input:
+      content: """
+      Meeting Notes - Project Kickoff
+      
+      10:00 - Project Manager introduces team
+      10:15 - Technical Lead presents architecture
+      11:00 - Team discusses timelines
+      12:00 - Meeting concludes
+      """
+    
+    output:
+      summary: "Project kickoff meeting established team structure and initial architecture. Key decisions made regarding timelines and technical approach."
+      
+      participants: """
+      - Project Manager
+      - Technical Lead
+      - Team Members
+      """
+      
+      timeline: """
+      10:00-10:15: Team Introduction
+      10:15-11:00: Architecture Presentation
+      11:00-12:00: Timeline Discussion
+      """
+
+# Error Handling
+error_handling:
+  - type: "input_too_long"
+    message: "Input content exceeds maximum length of {{ max_input_length }} characters. Please provide a shorter excerpt."
+    
+  - type: "empty_content"
+    message: "No content provided for event summary. Please provide valid input text."
+    
+  - type: "invalid_model"
+    message: "Invalid model specified: {{ model }}. Please use a supported model."
