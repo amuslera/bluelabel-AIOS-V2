@@ -29,4 +29,4 @@ class FileModel(Base):
     knowledge_id = Column(UUID)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     processed_at = Column(DateTime(timezone=True))
-    metadata = Column(JSONB)
+    file_metadata = Column('metadata', JSONB)

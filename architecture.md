@@ -2,6 +2,8 @@
 
 **Version**: `bluelabel-aios-v2-alpha` **Status**: Official implementation plan as of May 2025
 
+> **Note**: See "Deviations & Implementation Notes" section at the end for MVP-specific adjustments
+
 ## System Overview
 
 Bluelabel AIOS was originally designed for internal use by Ariel Muslera — an angel investor and solo GP — as a platform to automate and scale his workflows across research, content digestion, and strategic insight generation. The long-term goal is to support founders, fellow investors, and domain experts with a modular system for AI-powered knowledge work.
@@ -1078,3 +1080,70 @@ This architecture balances immediate practical implementation needs with a long-
 By focusing on one complete flow first and building API-first, we ensure the system provides value from day one while creating a solid foundation for future enhancements. The modular monorepo approach gives us the separation of concerns we need without prematurely introducing distributed systems complexity.
 
 As the system evolves, individual components can be extracted into separate services when scale or team structure demands it, while maintaining the same logical architecture and communication patterns established from the beginning.
+## Deviations & Implementation Notes (MVP Phase)
+
+**Last Updated**: May 17, 2025
+
+### MVP Scope Adjustments
+
+The current MVP implementation (branch: `mvp-reset`) focuses on a single, hardened flow:
+
+**Email (Gmail) → PDF/URL → ContentMind → Summary → Digest → Email Response**
+
+### Key Deviations from Full Architecture
+
+1. **Communication Channels**
+   - ✅ Gmail OAuth only (no IMAP, no other providers)
+   - ❌ WhatsApp deferred to post-MVP
+   - ❌ SMS/Telegram not in scope
+
+2. **Event Bus**
+   - ✅ Simulation mode (in-memory queue)
+   - ❌ Redis Streams deferred
+   - ❌ Kafka compatibility not tested
+
+3. **Storage & Knowledge**
+   - ✅ PostgreSQL for document storage
+   - ❌ ChromaDB vector store deferred
+   - ❌ Complex knowledge graph features disabled
+
+4. **LLM Integration**
+   - ✅ Single provider (Anthropic or OpenAI)
+   - ❌ Multi-provider fallback disabled
+   - ❌ Local models (Ollama) optional only
+
+5. **Workflow Engine**
+   - ✅ Simple sequential processing
+   - ❌ Complex multi-agent workflows deferred
+   - ❌ Conditional branching not implemented
+
+6. **UI Features**
+   - ✅ Basic dashboard and file upload
+   - ❌ Advanced analytics deferred
+   - ❌ Real-time agent monitoring simplified
+
+### Implementation Strategy
+
+We're following a "working skeleton" approach:
+1. Get the core flow working end-to-end
+2. Add robustness and error handling
+3. Optimize performance
+4. Then add additional features
+
+### Technical Simplifications
+
+- Using mock data for some dashboard features
+- Simplified agent runtime (no dynamic loading)
+- Basic file storage (local or S3, no multi-cloud)
+- Minimal monitoring (logs only, no metrics)
+
+### Migration Path
+
+After MVP validation, we'll gradually enable:
+1. Redis Streams for real event bus
+2. ChromaDB for vector search
+3. Multi-provider LLM support
+4. WhatsApp integration
+5. Advanced workflow features
+
+See [`MVP_RESET.md`](./MVP_RESET.md) for detailed implementation plan.

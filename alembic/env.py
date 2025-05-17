@@ -19,8 +19,48 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from services.knowledge.models import Base
-target_metadata = Base.metadata
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sqlalchemy import MetaData
+
+# Import all models to ensure they're registered with their respective Base.metadata
+try:
+    from shared.models.user import UserModel, Base as UserBase
+except ImportError:
+    UserBase = None
+    
+try:
+    from shared.models.file import FileModel, Base as FileBase
+except ImportError:
+    FileBase = None
+    
+try:
+    from services.knowledge.models import ContentItem, Tag, Concept, SearchQuery, Base as KnowledgeBase
+except ImportError:
+    KnowledgeBase = None
+    
+try:
+    from services.workflow.repository import WorkflowDB, WorkflowStepDB, WorkflowExecutionDB, ExecutionStepDB, Base as WorkflowBase
+except ImportError:
+    WorkflowBase = None
+
+# Combine all metadata
+combined_metadata = MetaData()
+bases = [b for b in [KnowledgeBase, UserBase, FileBase, WorkflowBase] if b is not None]
+
+if not bases:
+    # Fallback: try to import just the knowledge base
+    try:
+        from services.knowledge.models import Base
+        target_metadata = Base.metadata
+    except ImportError:
+        target_metadata = MetaData()
+else:
+    for base in bases:
+        for table in base.metadata.tables.values():
+            table.tometadata(combined_metadata)
+    target_metadata = combined_metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -42,8 +82,13 @@ def get_database_url():
     except:
         pass
     
-    # Fall back to alembic.ini
-    return config.get_main_option("sqlalchemy.url")
+    # Fall back to alembic.ini (if set)
+    url = config.get_main_option("sqlalchemy.url", None)
+    if url and url != '${DATABASE_URL}':
+        return url
+    
+    # Final fallback
+    return "postgresql://postgres:postgres@localhost:5432/bluelabel_aios"
 
 
 def run_migrations_offline() -> None:
