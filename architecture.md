@@ -1147,3 +1147,16 @@ After MVP validation, we'll gradually enable:
 5. Advanced workflow features
 
 See [`MVP_RESET.md`](./MVP_RESET.md) for detailed implementation plan.
+
+### Pending Implementation Notes
+
+The following components are simplified or simulated in the MVP phase:
+
+- **Redis**: Currently simulated with in-memory event queue. Redis Streams will be implemented post-MVP for production scalability.
+- **Email Ingestion**: Only Gmail OAuth is supported. IMAP and other providers come post-MVP.
+- **UI**: No frontend implementation in MVP. API-first approach with mock dashboard data.
+- **LLM Routing**: Single provider (Anthropic) in MVP. Multi-provider fallback and routing logic comes post-MVP.
+- **WhatsApp**: Not implemented in MVP. Focus is exclusively on email channel.
+- **Vector Database**: ChromaDB integration deferred. Using PostgreSQL only for MVP.
+- **Workflow Engine**: Basic sequential processing only. Complex multi-agent choreography comes post-MVP.
+- **Monitoring**: Minimal logging only. Full observability stack (Prometheus, Grafana) comes post-MVP.

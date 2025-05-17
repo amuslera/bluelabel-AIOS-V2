@@ -1,5 +1,7 @@
 # Bluelabel AIOS v2 Implementation Roadmap
 
+> ⚠️ _This file is archived and has been superseded by `TASK_CARDS.md`. It is retained for historical reference only._
+
 **Last Updated**: May 17, 2025  
 **Status**: Phase 1 - Stabilization & Integration
 

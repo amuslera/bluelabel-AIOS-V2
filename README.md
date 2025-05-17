@@ -1,117 +1,117 @@
-# Bluelabel AIOS v2
+# Bluelabel AIOS v2 - MVP Implementation
 
-**Version:** `bluelabel-aios-v2-alpha`  
-**Status:** MVP Development (Phase 1)  
-**Author:** Ariel Muslera / Bluelabel Ventures
+**Version:** `bluelabel-aios-v2-mvp`  
+**Status:** Active Development  
+**Branch:** `mvp-reset`  
 
-## 🎯 Project Focus
+## 🎯 Project Overview
 
-Bluelabel AIOS (Agentic Intelligence Operating System) is a modular AI agent platform for automating knowledge work. Originally built for Ariel Muslera (angel investor and solo GP), it will eventually support founders, investors, and builders.
+Bluelabel AIOS (Agentic Intelligence Operating System) is a modular AI agent platform for automating knowledge work. This MVP implementation focuses on a single, hardened flow to prove the core concept.
 
-**Current MVP Goal**: Email → PDF/URL → AI Summary → Email Response
+## 📊 MVP Architecture
+
+```
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Gmail     │────▶│   Gateway    │────▶│ ContentMind  │────▶│  Knowledge   │────▶│   Gmail     │
+│   Inbox     │     │    Agent     │     │    Agent     │     │  Repository  │     │   Reply     │
+└─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └─────────────┘
+     Email               Extract             Process             Store              Send Digest
+   with PDF             Content              & Summarize         Summary
+```
+
+### MVP Flow
+1. **Email Ingestion**: User sends email with PDF attachment to designated Gmail address
+2. **Content Extraction**: Gateway agent extracts PDF and triggers processing
+3. **AI Processing**: ContentMind agent analyzes and summarizes the document
+4. **Storage**: Summary stored in PostgreSQL knowledge repository  
+5. **Digest Creation**: Digest agent creates formatted summary
+6. **Email Response**: Summary sent back via Gmail to original sender
+
+## 🤖 AI Team Structure
+
+Our development is driven by an AI-first team:
+
+| Role | Agent | Responsibilities |
+|------|-------|-----------------|
+| **Systems Architect** | ChatGPT (Arch) | Maintains roadmap, coordinates team |
+| **Lead Developer** | Claude Code (CC) | Implements tasks from task cards |
+| **Dev Assistant** | Cursor AI (CA) | Refactors code, scaffolds boilerplate |
+| **Prompt Engineer** | Windsurf AI (WA) | Develops prompts, handles LLM config |
+| **Reviewer Agent** | Anthropic AI (RA) | Reviews code, ensures quality |
+| **Product Manager** | Human (PM) | Sets direction, approves scope |
+
+See [`team_structure.md`](./team_structure.md) for detailed roles and responsibilities.
 
 ## 🚀 Quick Start
 
-1. **Clone and setup**:
+1. **Clone repository**:
    ```bash
-   git clone <repository_url>
+   git clone <repository>
    cd bluelabel-aios-v2
-   git checkout mvp-reset  # Use MVP-focused branch
-   ./scripts/setup_basic.sh
+   git checkout mvp-reset
    ```
 
 2. **Configure environment**:
    ```bash
    cp .env.example .env
-   # Edit .env with:
+   # Add required keys:
    # - GMAIL_CLIENT_ID
-   # - GMAIL_CLIENT_SECRET  
-   # - ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+   # - GMAIL_CLIENT_SECRET
+   # - ANTHROPIC_API_KEY
    ```
 
 3. **Start services**:
    ```bash
    docker-compose up -d
-   ./scripts/run_integrated_api.sh
+   ./scripts/run_api.sh
    ```
 
-4. **Test the MVP flow**:
-   ```bash
-   # Send test email with PDF
-   python scripts/test_mvp_flow.py
-   ```
+## 📋 Development Plan
 
-## 📋 Development Roadmap
+All development tasks are tracked in [`TASK_CARDS.md`](./TASK_CARDS.md).
 
-All tasks are tracked in [`TASK_CARDS.md`](./TASK_CARDS.md)
+Current focus areas:
+- Phase 1: Critical foundation (80% complete)
+- Phase 2: MVP core workflow (starting)
+- Phase 3: Testing framework (planned)
 
-**Current Phase 1 Tasks**:
-- [x] TASK-001: Centralized Logging ✓
-- [x] TASK-002: Debug API Startup ✓
-- [x] TASK-003: Database Migrations ✓
-- [x] TASK-004: Frontend-Backend Integration ✓
-- [ ] TASK-005: File Upload System (current)
-- [ ] TASK-006: ContentMind Agent
-- [ ] TASK-007: Knowledge Repository
-- [ ] TASK-008: Email Gateway
-- [ ] TASK-009: Digest Agent
-- [ ] TASK-010: MVP Integration
+## 🏗️ Technical Stack
 
-## 🏗️ Architecture
+- **Backend**: Python/FastAPI
+- **Database**: PostgreSQL  
+- **Queue**: Redis (simulated in MVP)
+- **AI/LLM**: Anthropic Claude
+- **Email**: Gmail API with OAuth 2.0
+- **Storage**: Local filesystem (S3 compatible)
 
-```
-Email (Gmail) → Gateway → ContentMind → Knowledge Repo → Digest → Email Reply
-```
-
-For full architecture details, see [`architecture.md`](./architecture.md)
-
-## 📁 Project Structure
+## 📁 Repository Structure
 
 ```
 bluelabel-aios-v2/
-├── apps/               # Applications (API, UI)
-├── agents/             # AI agent implementations
-├── services/           # Core services (gateway, knowledge, storage)
-├── core/              # Shared utilities (config, logging, events)
-├── tests/             # Test suites
-├── scripts/           # Development scripts
-└── docs/              # Documentation
+├── apps/               # Applications
+│   └── api/           # FastAPI backend
+├── agents/            # Agent implementations
+├── services/          # Core services
+├── core/             # Shared utilities
+├── tests/            # Test suites
+├── scripts/          # Dev scripts
+└── docs/             # Documentation
 ```
 
-## 🧪 Testing
+## 🔗 Key Documentation
 
-```bash
-# Run unit tests
-pytest tests/unit/
+- [`TASK_CARDS.md`](./TASK_CARDS.md) - Primary execution roadmap
+- [`MVP_RESET.md`](./MVP_RESET.md) - MVP implementation strategy
+- [`team_structure.md`](./team_structure.md) - AI team organization
+- [`architecture.md`](./architecture.md) - Long-term system design
 
-# Run integration tests
-pytest tests/integration/
+## ⚠️ MVP Limitations
 
-# Run specific MVP test
-python scripts/test_mvp_flow.py
-```
+This MVP implementation intentionally excludes:
+- WhatsApp integration
+- Vector databases
+- Complex UI
+- Multi-provider LLM routing
+- Advanced workflow orchestration
 
-## 🔧 Development
-
-1. **Follow task cards**: Use [`TASK_CARDS.md`](./TASK_CARDS.md) for all work
-2. **Update progress**: Mark tasks complete as you finish
-3. **Test everything**: Each component should have tests
-4. **Document changes**: Update CHANGELOG.md
-
-## 📚 Documentation
-
-- [`MVP_RESET.md`](./MVP_RESET.md) - Current MVP implementation plan
-- [`TASK_CARDS.md`](./TASK_CARDS.md) - All development tasks
-- [`architecture.md`](./architecture.md) - System architecture
-- [`CLAUDE.md`](./CLAUDE.md) - AI assistant guidance
-
-## ⚠️ Important Notes
-
-- This is an MVP reset focused on one flow: Email → Summary → Reply
-- Advanced features (WhatsApp, vector DB, complex workflows) are deferred
-- Using simulation mode for Redis, single LLM provider
-- Docker-based development environment
-
-## 📧 Support
-
-For questions about the project, contact Ariel Muslera.
+These features are planned for post-MVP phases.
