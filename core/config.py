@@ -63,6 +63,13 @@ class Settings(BaseModel):
     whatsapp: WhatsAppConfig = WhatsAppConfig()
     logging: LoggingConfig = LoggingConfig()
     
+    # Storage settings
+    local_storage_path: str = os.getenv("LOCAL_STORAGE_PATH", "./data/storage")
+    
+    # Gmail OAuth settings
+    gmail_client_id: str = os.getenv("GMAIL_CLIENT_ID", "")
+    gmail_client_secret: str = os.getenv("GMAIL_CLIENT_SECRET", "")
+    
     # Add direct access to common settings for compatibility
     @property
     def OPENAI_API_KEY(self) -> Optional[str]:
@@ -89,10 +96,6 @@ class Settings(BaseModel):
         return os.getenv("LLM_ENABLED", "false").lower() == "true"
     
     @property
-    def OPENAI_API_KEY(self) -> Optional[str]:
-        return self.llm.openai_api_key
-    
-    @property
     def GOOGLE_GENERATIVEAI_API_KEY(self) -> Optional[str]:
         return os.getenv("GOOGLE_GENERATIVEAI_API_KEY")
     
@@ -107,6 +110,18 @@ class Settings(BaseModel):
     @property
     def JWT_SECRET_KEY(self) -> str:
         return os.getenv("JWT_SECRET_KEY", "insecure-development-key-change-in-production")
+    
+    @property
+    def LOCAL_STORAGE_PATH(self) -> str:
+        return self.local_storage_path
+    
+    @property
+    def GMAIL_CLIENT_ID(self) -> str:
+        return self.gmail_client_id
+    
+    @property
+    def GMAIL_CLIENT_SECRET(self) -> str:
+        return self.gmail_client_secret
 
 
 # Create global config instances

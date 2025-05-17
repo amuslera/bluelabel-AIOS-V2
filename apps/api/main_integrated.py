@@ -19,7 +19,7 @@ from core.logging_enhanced import setup_logging
 from core.config import get_settings
 
 # Import routers - use integrated versions that match frontend expectations
-from apps.api.routers import health
+from apps.api.health_simple import router as health_router
 from apps.api.routers.status_integrated import router as status_router
 from apps.api.routers.agents_integrated import router as agents_router
 from apps.api.routers.knowledge_integrated import router as knowledge_router
@@ -88,7 +88,7 @@ async def root():
     }
 
 # Include routers with proper prefixes
-app.include_router(health.router, tags=["health"])
+app.include_router(health_router, tags=["health"])
 app.include_router(status_router, prefix="/api/v1/status", tags=["status"])
 app.include_router(agents_router, prefix="/api/v1/agents", tags=["agents"])
 app.include_router(knowledge_router, prefix="/api/v1/knowledge", tags=["knowledge"])
