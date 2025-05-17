@@ -5,14 +5,16 @@ from typing import Optional, List, Dict, Any
 import uuid
 import json
 
+from enum import Enum
 from sqlalchemy import (
-    Column, String, Text, DateTime, JSON, 
-    ForeignKey, Table, create_engine, Index
+    Column, String, Text, DateTime, JSON, Integer, Float,
+    ForeignKey, Table, create_engine, Index, Enum as SQLEnum, ARRAY
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.types import TypeDecorator, String as SA_String
+from sqlalchemy.sql import func
 
 class UUID(TypeDecorator):
     """Platform-independent UUID type.
@@ -53,6 +55,48 @@ class UUID(TypeDecorator):
                 return value
 
 Base = declarative_base()
+
+
+# Knowledge Repository Enums
+class SourceType(str, Enum):
+    """Enumeration of knowledge source types."""
+    EMAIL = "email"
+    WHATSAPP = "whatsapp"
+    PDF = "pdf"
+    URL = "url"
+    MANUAL = "manual"
+
+
+class ContentType(str, Enum):
+    """Enumeration of content types."""
+    SUMMARY = "summary"
+    TRANSCRIPT = "transcript"
+    EXTRACTION = "extraction"
+    NOTE = "note"
+
+
+class KnowledgeStatus(str, Enum):
+    """Enumeration of knowledge item statuses."""
+    DRAFT = "draft"
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+    DELETED = "deleted"
+
+
+class ReviewStatus(str, Enum):
+    """Enumeration of review statuses."""
+    PENDING = "pending"
+    REVIEWED = "reviewed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class RelationshipType(str, Enum):
+    """Enumeration of relationship types between knowledge items."""
+    DERIVED_FROM = "derived_from"
+    RELATED_TO = "related_to"
+    SUMMARIZES = "summarizes"
+    REFERENCES = "references"
 
 # Association table for many-to-many relationship between content and tags
 content_tags = Table(
@@ -183,3 +227,118 @@ class SearchQuery(Base):
         Index('idx_search_timestamp', 'timestamp'),
         Index('idx_search_user', 'user_id'),
     )
+
+
+# Knowledge Repository Models (MVP)
+class KnowledgeItem(Base):
+    """Main table for storing processed content from various sources."""
+    __tablename__ = "knowledge_items"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    agent_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    
+    # Source information
+    source_type = Column(SQLEnum(SourceType), nullable=False, index=True)
+    source_url = Column(Text)
+    source_metadata = Column(JSON)
+    
+    # Content information
+    content_type = Column(SQLEnum(ContentType), nullable=False, index=True)
+    content_text = Column(Text, nullable=False)
+    content_metadata = Column(JSON)
+    
+    # Organization and searchability
+    tags = Column(ARRAY(Text), default=list)
+    categories = Column(ARRAY(Text), default=list)
+    language = Column(String(10), default='en')
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    processed_at = Column(DateTime(timezone=True))
+    
+    # Versioning and relationships
+    version = Column(Integer, default=1)
+    parent_id = Column(UUID(), ForeignKey("knowledge_items.id"))
+    
+    # Status and quality
+    status = Column(SQLEnum(KnowledgeStatus), default=KnowledgeStatus.ACTIVE, nullable=False, index=True)
+    confidence_score = Column(Float)
+    review_status = Column(SQLEnum(ReviewStatus))
+    
+    # Relationships
+    parent = relationship("KnowledgeItem", remote_side=[id], backref="children")
+    source_relationships = relationship("KnowledgeRelationship", foreign_keys="KnowledgeRelationship.source_id", back_populates="source")
+    target_relationships = relationship("KnowledgeRelationship", foreign_keys="KnowledgeRelationship.target_id", back_populates="target")
+    attachments = relationship("KnowledgeAttachment", back_populates="knowledge_item", cascade="all, delete-orphan")
+    
+    # Indexes for better query performance
+    __table_args__ = (
+        Index('idx_knowledge_items_created_at', 'created_at'),
+        Index('idx_knowledge_items_tags', 'tags', postgresql_using='gin'),
+        Index('idx_knowledge_items_categories', 'categories', postgresql_using='gin'),
+        Index('idx_knowledge_items_text_search', func.to_tsvector('english', 'content_text'), postgresql_using='gin'),
+    )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation"""
+        return {
+            'id': str(self.id),
+            'agent_id': self.agent_id,
+            'user_id': self.user_id,
+            'source_type': self.source_type.value if self.source_type else None,
+            'source_url': self.source_url,
+            'source_metadata': self.source_metadata,
+            'content_type': self.content_type.value if self.content_type else None,
+            'content_text': self.content_text,
+            'content_metadata': self.content_metadata,
+            'tags': self.tags or [],
+            'categories': self.categories or [],
+            'language': self.language,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'processed_at': self.processed_at.isoformat() if self.processed_at else None,
+            'version': self.version,
+            'parent_id': str(self.parent_id) if self.parent_id else None,
+            'status': self.status.value if self.status else None,
+            'confidence_score': self.confidence_score,
+            'review_status': self.review_status.value if self.review_status else None
+        }
+
+
+class KnowledgeRelationship(Base):
+    """Table for storing relationships between knowledge items."""
+    __tablename__ = "knowledge_relationships"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    source_id = Column(UUID(), ForeignKey("knowledge_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_id = Column(UUID(), ForeignKey("knowledge_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    relationship_type = Column(SQLEnum(RelationshipType), nullable=False)
+    metadata = Column(JSON)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    
+    # Relationships
+    source = relationship("KnowledgeItem", foreign_keys=[source_id], back_populates="source_relationships")
+    target = relationship("KnowledgeItem", foreign_keys=[target_id], back_populates="target_relationships")
+    
+    __table_args__ = (
+        Index('idx_knowledge_relationships_type', 'relationship_type'),
+    )
+
+
+class KnowledgeAttachment(Base):
+    """Table for storing references to attachments associated with knowledge items."""
+    __tablename__ = "knowledge_attachments"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    knowledge_item_id = Column(UUID(), ForeignKey("knowledge_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(Text, nullable=False)
+    file_size = Column(Integer)
+    mime_type = Column(String(100))
+    metadata = Column(JSON)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    
+    # Relationships
+    knowledge_item = relationship("KnowledgeItem", back_populates="attachments")

@@ -3,12 +3,17 @@
 import asyncio
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from services.knowledge.factory import get_knowledge_repository
 from services.knowledge.repository import ContentItem as FileContentItem
+from services.knowledge.models import SourceType, ContentType, KnowledgeStatus, ReviewStatus
+from services.knowledge.knowledge_service import KnowledgeService
+from apps.api.dependencies.database import get_db
 
 router = APIRouter()
 
@@ -240,3 +245,151 @@ async def delete_content(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# MVP Knowledge Repository Endpoints
+# These use the new PostgreSQL-based knowledge_items table
+
+class KnowledgeItemCreate(BaseModel):
+    """Schema for creating a knowledge item."""
+    agent_id: str
+    user_id: str
+    source_type: SourceType
+    content_type: ContentType
+    content_text: str
+    source_url: Optional[str] = None
+    source_metadata: Optional[Dict[str, Any]] = None
+    content_metadata: Optional[Dict[str, Any]] = None
+    tags: Optional[List[str]] = None
+    categories: Optional[List[str]] = None
+    language: str = 'en'
+    confidence_score: Optional[float] = None
+
+
+class KnowledgeItemUpdate(BaseModel):
+    """Schema for updating a knowledge item."""
+    content_text: Optional[str] = None
+    source_metadata: Optional[Dict[str, Any]] = None
+    content_metadata: Optional[Dict[str, Any]] = None
+    tags: Optional[List[str]] = None
+    categories: Optional[List[str]] = None
+    language: Optional[str] = None
+    status: Optional[KnowledgeStatus] = None
+    confidence_score: Optional[float] = None
+    review_status: Optional[ReviewStatus] = None
+
+
+class KnowledgeItemResponse(BaseModel):
+    """Schema for knowledge item response."""
+    id: UUID
+    agent_id: str
+    user_id: str
+    source_type: SourceType
+    source_url: Optional[str]
+    source_metadata: Dict[str, Any]
+    content_type: ContentType
+    content_text: str
+    content_metadata: Dict[str, Any]
+    tags: List[str]
+    categories: List[str]
+    language: str
+    created_at: datetime
+    updated_at: datetime
+    processed_at: Optional[datetime]
+    version: int
+    parent_id: Optional[UUID]
+    status: KnowledgeStatus
+    confidence_score: Optional[float]
+    review_status: Optional[ReviewStatus]
+    
+    class Config:
+        orm_mode = True
+
+
+class KnowledgeSearchParams(BaseModel):
+    """Schema for search parameters."""
+    query: Optional[str] = None
+    source_types: Optional[List[SourceType]] = None
+    content_types: Optional[List[ContentType]] = None
+    tags: Optional[List[str]] = None
+    categories: Optional[List[str]] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
+    status: Optional[KnowledgeStatus] = KnowledgeStatus.ACTIVE
+    limit: int = Field(default=50, le=100)
+    offset: int = Field(default=0, ge=0)
+
+
+@router.post("/mvp/items", response_model=KnowledgeItemResponse)
+async def create_knowledge_item_mvp(
+    item: KnowledgeItemCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new knowledge item (MVP)."""
+    service = KnowledgeService(db)
+    try:
+        created_item = await service.create_knowledge_item(**item.dict())
+        return KnowledgeItemResponse.from_orm(created_item)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/mvp/items/{item_id}", response_model=KnowledgeItemResponse)
+async def get_knowledge_item_mvp(
+    item_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """Get a knowledge item by ID (MVP)."""
+    service = KnowledgeService(db)
+    item = await service.get_knowledge_item(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Knowledge item not found")
+    return KnowledgeItemResponse.from_orm(item)
+
+
+@router.patch("/mvp/items/{item_id}", response_model=KnowledgeItemResponse)
+async def update_knowledge_item_mvp(
+    item_id: UUID,
+    update: KnowledgeItemUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a knowledge item (MVP)."""
+    service = KnowledgeService(db)
+    try:
+        updated_item = await service.update_knowledge_item(
+            item_id,
+            **update.dict(exclude_unset=True)
+        )
+        return KnowledgeItemResponse.from_orm(updated_item)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mvp/search", response_model=List[KnowledgeItemResponse])
+async def search_knowledge_items_mvp(
+    user_id: str,
+    params: KnowledgeSearchParams,
+    db: Session = Depends(get_db)
+):
+    """Search knowledge items with filters (MVP)."""
+    service = KnowledgeService(db)
+    items = await service.search_knowledge_items(
+        user_id=user_id,
+        **params.dict(exclude_unset=True)
+    )
+    return [KnowledgeItemResponse.from_orm(item) for item in items]
+
+
+@router.delete("/mvp/items/{item_id}")
+async def delete_knowledge_item_mvp(
+    item_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """Soft delete a knowledge item (MVP)."""
+    service = KnowledgeService(db)
+    success = await service.delete_knowledge_item(item_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Knowledge item not found")
+    return {"status": "deleted"}
