@@ -71,3 +71,38 @@ def test_prompt_structure():
     assert 'model' in prompt['config']
     assert 'temperature' in prompt['config']
     assert 'max_tokens' in prompt['config']
+    
+    # Test malformed content
+    def test_malformed_content():
+        """Test handling of malformed content."""
+        loader = ContentMindPromptLoader()
+        
+        # Test empty content
+        with pytest.raises(ValueError):
+            loader.get_prompt("")
+            
+        # Test non-string content
+        with pytest.raises(TypeError):
+            loader.get_prompt(123)
+            
+        # Test content with special characters
+        special_content = "\n\t\r\x00"
+        prompt = loader.get_prompt(special_content)
+        assert prompt['user']  # Should still generate a prompt
+        
+    # Test missing config values
+    def test_missing_config():
+        """Test handling of missing configuration values."""
+        loader = ContentMindPromptLoader()
+        
+        # Test missing temperature (should use default)
+        prompt = loader.get_prompt(test_content, config={'max_tokens': 1000})
+        assert 'temperature' in prompt['config']
+        
+        # Test invalid config value
+        with pytest.raises(ValueError):
+            loader.get_prompt(test_content, config={'temperature': -1})
+            
+        # Test invalid config type
+        with pytest.raises(TypeError):
+            loader.get_prompt(test_content, config={'temperature': 'invalid'})
