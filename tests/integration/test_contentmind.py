@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, Any
 
@@ -64,7 +65,7 @@ Format your response as structured JSON.""",
     ]
 }
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def mock_llm_router():
     """Create a mock LLM router."""
     router = AsyncMock(spec=LLMRouter)
@@ -95,7 +96,7 @@ async def mock_llm_router():
     router.generate = mock_generate
     return router
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def mock_mcp_manager():
     """Create a mock MCP manager."""
     manager = MagicMock(spec=MCPManager)
@@ -107,7 +108,7 @@ async def mock_mcp_manager():
     manager.render_prompt = mock_render_prompt
     return manager
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def content_mind_agent(mock_llm_router, mock_mcp_manager):
     """Create a ContentMind agent with mocked dependencies."""
     agent = ContentMind(

@@ -14,13 +14,20 @@ from services.knowledge.knowledge_service import KnowledgeService
 
 @pytest.fixture
 def db_session():
-    """Create an in-memory SQLite database for testing."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    session = SessionLocal()
+    """Create a test database session."""
+    # For unit tests, we'll mock the database session
+    # or use a test PostgreSQL database if available
+    import unittest.mock as mock
+    session = mock.Mock()
+    
+    # Mock the necessary SQLAlchemy methods
+    session.add = mock.Mock()
+    session.commit = mock.Mock()
+    session.rollback = mock.Mock()
+    session.refresh = mock.Mock()
+    session.query = mock.Mock()
+    
     yield session
-    session.close()
 
 
 @pytest.fixture

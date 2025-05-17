@@ -315,7 +315,7 @@ class KnowledgeRelationship(Base):
     source_id = Column(UUID(), ForeignKey("knowledge_items.id", ondelete="CASCADE"), nullable=False, index=True)
     target_id = Column(UUID(), ForeignKey("knowledge_items.id", ondelete="CASCADE"), nullable=False, index=True)
     relationship_type = Column(SQLEnum(RelationshipType), nullable=False)
-    metadata = Column(JSON)
+    relationship_metadata = Column('metadata', JSON)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     
     # Relationships
@@ -337,7 +337,7 @@ class KnowledgeAttachment(Base):
     file_path = Column(Text, nullable=False)
     file_size = Column(Integer)
     mime_type = Column(String(100))
-    metadata = Column(JSON)
+    attachment_metadata = Column('metadata', JSON)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     
     # Relationships
