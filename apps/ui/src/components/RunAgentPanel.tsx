@@ -8,9 +8,10 @@ import {
   ParameterDefinition
 } from '../types/agent';
 import { useAgentExecution } from '../hooks/useAgentExecution';
-import { Button } from './ui/Button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
+import { Button } from './UI/Button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './UI/Tabs';
 import { Loader } from 'lucide-react';
+import { ProgressBar } from './UI/ProgressBar';
 
 interface RunAgentPanelProps {
   agentId?: string;
@@ -88,7 +89,7 @@ export const RunAgentPanel: React.FC<RunAgentPanelProps> = ({
       }
     } catch (error) {
       console.error('Agent execution failed:', error);
-      setOutput({ error: error.message });
+      setOutput({ error: error instanceof Error ? error.message : 'Unknown error' });
     } finally {
       setIsExecuting(false);
     }
@@ -252,9 +253,16 @@ export const RunAgentPanel: React.FC<RunAgentPanelProps> = ({
   const renderOutput = () => {
     if (isExecuting) {
       return (
-        <div className="flex items-center justify-center p-8">
-          <Loader className="animate-spin text-cyan-500" />
-          <span className="ml-2 text-green-400">Processing...</span>
+        <div className="p-8">
+          <ProgressBar 
+            progress={50} // You can update this based on actual progress
+            text="PROCESSING AGENT TASK"
+            showPercentage={false}
+            className="mb-4"
+          />
+          <div className="text-center text-green-400">
+            Executing {selectedAgent}...
+          </div>
         </div>
       );
     }

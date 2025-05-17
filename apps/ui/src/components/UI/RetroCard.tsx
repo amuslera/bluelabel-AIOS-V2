@@ -3,38 +3,18 @@ import React from 'react';
 interface RetroCardProps {
   title?: string;
   children: React.ReactNode;
-  variant?: 'default' | 'error' | 'success' | 'warning';
   className?: string;
 }
 
-export const RetroCard: React.FC<RetroCardProps> = ({
-  title,
-  children,
-  variant = 'default',
-  className = '',
-}) => {
-  const borderColors = {
-    default: 'border-terminal-cyan',
-    error: 'border-error-pink',
-    success: 'border-terminal-green',
-    warning: 'border-terminal-amber',
-  };
-
-  const titleColors = {
-    default: 'text-terminal-cyan',
-    error: 'text-error-pink',
-    success: 'text-terminal-green',
-    warning: 'text-terminal-amber',
-  };
-
+export const RetroCard: React.FC<RetroCardProps> = ({ title, children, className = '' }) => {
   return (
-    <div className={`border-2 ${borderColors[variant]} p-4 bg-terminal-dark ascii-border ${className}`}>
+    <div className={`border-2 border-cyan-400 p-4 bg-black ${className}`}>
       {title && (
-        <h3 className={`text-lg mb-4 ${titleColors[variant]} font-bold`}>
-          {title}
-        </h3>
+        <h3 className="text-cyan-400 text-lg font-bold mb-4 uppercase">{title}</h3>
       )}
-      {children}
+      <div className="text-green-400">
+        {children}
+      </div>
     </div>
   );
 };

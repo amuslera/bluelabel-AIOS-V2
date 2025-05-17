@@ -141,10 +141,9 @@ const commands: Record<string, Command> = {
         }
 
         const timestamp = new Date().toLocaleTimeString();
-        const result = await agentsAPI.executeAgent(agent.id, { input });
-        
+        // Use special output to trigger the agent panel with progress bar
         return {
-          output: `[${timestamp}] Starting ${agent.name} agent...\n[${timestamp}] Processing input: "${input}"\n[${timestamp}] Execution complete.\n\nResult:\n${JSON.stringify(result.output, null, 2)}`,
+          output: `_OPEN_RUN_AGENT_PANEL_`,
           type: 'output',
         };
       } catch (error) {
@@ -152,7 +151,7 @@ const commands: Record<string, Command> = {
         const timestamp = new Date().toLocaleTimeString();
         
         return {
-          output: `[${timestamp}] Starting ${agentName} agent...\n[${timestamp}] Processing input: "${input}"\n[${timestamp}] Analysis complete.\n\nSUMMARY:\n────────\nThis is a mock response. Connect to real API for actual results.\n\nENTITIES: Mock, Test, Demo\nSENTIMENT: Positive (0.85)`,
+          output: `[${timestamp}] Starting ${agentName} agent...\n[${timestamp}] Processing input: "${input}"\n[${timestamp}] [▓▓▓▓▓▓░░░░] 60% PROCESSING...\n[${timestamp}] Analysis complete.\n\nSUMMARY:\n────────\nThis is a mock response. Connect to real API for actual results.\n\nENTITIES: Mock, Test, Demo\nSENTIMENT: Positive (0.85)`,
           type: 'output',
         };
       }

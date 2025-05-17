@@ -8,7 +8,7 @@ ContentMind is the core agent responsible for:
 """
 
 import asyncio
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from datetime import datetime
 import logging
 from enum import Enum
@@ -18,9 +18,11 @@ from agents.digest_agent import DigestAgent
 from services.content.pdf_extractor import PDFExtractor
 from services.content.url_extractor import URLExtractor
 from services.content.audio_transcriber import AudioTranscriber
-from services.workflow.langgraph_engine import LangGraphWorkflowEngine
 from services.llm_router import LLMRouter, LLMMessage
 from core.event_bus import EventBus
+
+if TYPE_CHECKING:
+    from services.workflow.langgraph_engine import LangGraphWorkflowEngine
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ class ContentMind(Agent):
     def __init__(self,
                  agent_id: str = "content_mind",
                  event_bus: Optional[EventBus] = None,
-                 workflow_engine: Optional[LangGraphWorkflowEngine] = None,
+                 workflow_engine: Optional['LangGraphWorkflowEngine'] = None,
                  llm_router: Optional[LLMRouter] = None,
                  metadata: Optional[Dict[str, Any]] = None):
         """Initialize ContentMind agent.

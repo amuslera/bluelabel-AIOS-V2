@@ -137,12 +137,13 @@ export const Terminal: React.FC = () => {
       
       {showFileUpload && (
         <FileUploadModal
+          isOpen={showFileUpload}
           onClose={() => setShowFileUpload(false)}
-          onUploadSuccess={(fileId) => {
+          onUpload={(file: File) => {
             setShowFileUpload(false);
             setHistory(prev => [...prev, {
               type: 'info',
-              content: `File uploaded successfully: ${fileId}`,
+              content: `File uploaded: ${file.name}`,
             }]);
           }}
         />

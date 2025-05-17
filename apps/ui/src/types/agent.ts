@@ -87,7 +87,7 @@ export const mockAgents: Record<string, AgentCapability> = {
         label: 'Temperature',
         description: 'Controls randomness (0-1)',
         default: 0.7,
-        validation: (value) => value >= 0 && value <= 1 || 'Must be between 0 and 1'
+        validation: (value) => (value >= 0 && value <= 1) || 'Must be between 0 and 1'
       },
       {
         name: 'summarize',
@@ -126,7 +126,7 @@ export const mockAgents: Record<string, AgentCapability> = {
         type: 'number',
         label: 'Max Length (words)',
         default: 500,
-        validation: (value) => value > 0 || 'Must be positive'
+        validation: (value) => (value > 0) || 'Must be positive'
       }
     ]
   }

@@ -1,46 +1,63 @@
 import React, { useState, useEffect } from 'react';
+import { ProgressBar } from './ProgressBar';
 
 interface StartupSequenceProps {
   onComplete: () => void;
 }
 
 export const StartupSequence: React.FC<StartupSequenceProps> = ({ onComplete }) => {
-  const [messages, setMessages] = useState<string[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentLine, setCurrentLine] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
 
   const startupMessages = [
-    '>> Initializing Bluelabel AIOS...',
-    '>> Authenticating session...',
-    '>> Loading ContentMind agent...',
-    '>> Connecting to Redis stream...',
-    '>> AIOS v2 booted. Awaiting input.'
+    'COMMODORE 64 BASIC V2',
+    '64K RAM SYSTEM  38911 BASIC BYTES FREE',
+    'READY.',
+    'LOAD "BLUELABEL",8,1',
+    'SEARCHING FOR BLUELABEL',
+    'LOADING',
+    'READY.',
+    'RUN',
+    'INITIALIZING BLUELABEL AIOS V2.0...',
+    'LOADING SYSTEM MODULES...',
+    'CONNECTING TO NETWORK...',
+    'SYSTEM READY'
   ];
 
   useEffect(() => {
-    if (currentIndex < startupMessages.length) {
+    if (currentLine < startupMessages.length) {
       const timer = setTimeout(() => {
-        setMessages(prev => [...prev, startupMessages[currentIndex]]);
-        setCurrentIndex(prev => prev + 1);
-      }, 300);
+        setCurrentLine(currentLine + 1);
+      }, 400); // Doubled the time between messages
       return () => clearTimeout(timer);
-    } else {
-      setTimeout(onComplete, 500);
+    } else if (!isComplete) {
+      setIsComplete(true);
+      setTimeout(onComplete, 2000); // Show completion for 2 seconds
     }
-  }, [currentIndex, startupMessages, onComplete]);
+  }, [currentLine, startupMessages.length, isComplete, onComplete]);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-cyan-400 p-8 font-terminal">
-      <div className="max-w-4xl mx-auto">
-        {messages.map((message, index) => (
-          <div key={index} className="mb-2 text-lg">
-            {message}
-          </div>
-        ))}
-        {currentIndex >= startupMessages.length && (
-          <div className="mt-8 border-2 border-cyan-400 p-2 inline-block">
-            <span className="text-cyan-400">&gt;_</span>
-          </div>
-        )}
+    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-cyan-400 font-mono">
+          {startupMessages.slice(0, currentLine).map((message, index) => (
+            <div key={index} className="mb-1">
+              {message}
+            </div>
+          ))}
+          {currentLine < startupMessages.length && (
+            <div className="inline-block animate-pulse">█</div>
+          )}
+        </div>
+      </div>
+      
+      {/* Progress bar at the bottom */}
+      <div className="p-8">
+        <ProgressBar 
+          progress={(currentLine / startupMessages.length) * 100}
+          text="LOADING BLUELABEL AIOS"
+          showPercentage={true}
+        />
       </div>
     </div>
   );

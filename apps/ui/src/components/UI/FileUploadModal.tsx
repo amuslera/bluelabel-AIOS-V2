@@ -22,20 +22,9 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setSelectedFile(e.dataTransfer.files[0]);
     }
@@ -45,59 +34,58 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
     if (selectedFile) {
       onUpload(selectedFile);
       setSelectedFile(null);
-      onClose();
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="max-w-lg w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="w-full max-w-md">
         <RetroCard title="UPLOAD FILE">
-          <div 
-            className={`border-2 border-dashed p-8 text-center transition-colors ${
-              dragOver ? 'border-terminal-green bg-terminal-green/10' : 'border-terminal-cyan'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
+          <div
+            className={`border-2 border-dashed ${
+              dragOver ? 'border-green-400' : 'border-cyan-400'
+            } p-8 text-center transition-colors`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
           >
-            <div className="text-terminal-cyan mb-4">
-              DRAG AND DROP FILE HERE
-            </div>
-            <div className="text-terminal-cyan/70 mb-4">OR</div>
-            <label className="inline-block">
-              <input
-                type="file"
-                className="hidden"
-                onChange={handleFileSelect}
-                accept=".pdf,.txt,.doc,.docx,.csv,.json"
-              />
-              <RetroButton>CHOOSE FILE</RetroButton>
+            <input
+              type="file"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-upload"
+            />
+            <label htmlFor="file-upload" className="cursor-pointer">
+              <div className="text-cyan-400 mb-4">
+                {selectedFile ? (
+                  <>
+                    <div className="text-green-400">Selected:</div>
+                    <div>{selectedFile.name}</div>
+                    <div className="text-sm mt-2">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </div>
+                  </>
+                ) : (
+                  <>DROP FILE HERE OR CLICK TO SELECT</>
+                )}
+              </div>
             </label>
           </div>
-
-          {selectedFile && (
-            <div className="mt-4 p-3 border border-terminal-cyan">
-              <div className="text-terminal-cyan">SELECTED FILE:</div>
-              <div className="text-terminal-green">{selectedFile.name}</div>
-              <div className="text-terminal-cyan/70 text-sm">
-                Size: {(selectedFile.size / 1024).toFixed(2)} KB
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-3 mt-6">
-            <RetroButton 
-              onClick={handleUpload} 
-              variant="success"
+          <div className="flex justify-between mt-4">
+            <RetroButton variant="error" onClick={onClose}>
+              CANCEL
+            </RetroButton>
+            <RetroButton
+              variant="primary"
+              onClick={handleUpload}
               disabled={!selectedFile}
             >
               UPLOAD
-            </RetroButton>
-            <RetroButton onClick={onClose} variant="error">
-              CANCEL
             </RetroButton>
           </div>
         </RetroCard>
