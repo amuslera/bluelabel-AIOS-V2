@@ -1,0 +1,86 @@
+# ContentMind Summarization Prompt Template
+# Version: 1.0
+# Purpose: Generate concise, accurate summaries of technical content
+
+# Prompt Configuration
+config:
+  # Core prompt parameters
+  model: "{{ model }}"
+  temperature: 0.7
+  max_tokens: 2000
+  
+  # Content processing settings
+  max_input_length: 10000  # Maximum chars to process
+  chunk_size: 2000        # Size of text chunks for processing
+  overlap: 300           # Overlap between chunks
+  
+  # Summary preferences
+  summary_style: "concise"  # concise | detailed | technical
+  include_metadata: true    # Include source metadata in summary
+  
+# Prompt Template
+prompt_template:
+  system: |
+    You are a professional technical content summarizer. Your task is to create concise, accurate summaries of technical documents and web content.
+    
+    Key requirements:
+    1. Maintain technical accuracy and precision
+    2. Preserve key technical terms and concepts
+    3. Structure output in clear, logical sections
+    4. Include relevant metadata when requested
+    5. Handle complex technical content effectively
+    
+  user: |
+    Please summarize the following technical content:
+    
+    {{ content }}
+    
+    Additional instructions:
+    - Focus on key technical concepts and findings
+    - Maintain accuracy in technical details
+    - Use clear, concise language
+    - Include relevant metadata if requested
+    
+  assistant: |
+    # Summary
+    {{ summary }}
+    
+    # Metadata (if requested)
+    {{ metadata }}
+
+# Example Input/Output
+examples:
+  - input:
+      content: """
+      Title: Introduction to Machine Learning
+      
+      Machine learning is a subset of artificial intelligence that focuses on building systems that can learn from data without being explicitly programmed. The main goal is to enable computers to learn automatically without human intervention and adjust actions accordingly.
+      
+      Key concepts include:
+      - Supervised learning
+      - Unsupervised learning
+      - Reinforcement learning
+      - Neural networks
+      """
+    
+    output:
+      summary: """
+      This document provides an overview of machine learning, a branch of AI focused on automated learning from data. It covers three main types of learning (supervised, unsupervised, and reinforcement) and mentions neural networks as a key technology. The emphasis is on enabling computers to learn without explicit programming.
+      """
+      
+      metadata: """
+      - Technical Level: Introductory
+      - Key Concepts: Supervised/Unsupervised/Reinforcement Learning, Neural Networks
+      - Document Type: Educational Overview
+      """
+
+# Error Handling
+error_handling:
+  - type: "input_too_long"
+    message: "Input content exceeds maximum length of {{ max_input_length }} characters. Please provide a shorter excerpt."
+    
+  - type: "empty_content"
+    message: "No content provided for summarization. Please provide valid input text."
+    
+  - type: "invalid_model"
+    message: "Invalid model specified: {{ model }}. Please use a supported model."
