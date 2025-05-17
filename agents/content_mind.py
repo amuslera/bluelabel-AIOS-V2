@@ -1,475 +1,483 @@
-from agents.base import Agent, AgentInput, AgentOutput, Tool
-from core.logging import setup_logging
-from typing import Dict, Any, List, Optional
-from services.model_router.router import ModelRouter, ProviderType
-from services.model_router.base import LLMMessage, LLMProviderConfig
-import asyncio
-import re
-import json
+"""ContentMind Agent - The primary content processing agent.
 
-logger = setup_logging(service_name="content-mind")
+ContentMind is the core agent responsible for:
+- Processing incoming content (PDFs, URLs, audio)
+- Extracting and structuring information
+- Creating summaries and insights
+- Coordinating with other agents for specialized tasks
+"""
+
+import asyncio
+from typing import Dict, Any, List, Optional
+from datetime import datetime
+import logging
+from enum import Enum
+
+from agents.base import Agent, AgentInput, AgentOutput
+from agents.digest_agent import DigestAgent
+from services.content.pdf_extractor import PDFExtractor
+from services.content.url_extractor import URLExtractor
+from services.content.audio_transcriber import AudioTranscriber
+from services.workflow.langgraph_engine import LangGraphWorkflowEngine
+from services.llm_router import LLMRouter, LLMMessage
+from core.event_bus import EventBus
+
+logger = logging.getLogger(__name__)
+
+
+class ContentType(Enum):
+    """Supported content types."""
+    TEXT = "text"
+    PDF = "pdf"
+    URL = "url"
+    AUDIO = "audio"
+    VIDEO = "video"
+
 
 class ContentMind(Agent):
-    """
-    Agent for processing and understanding content
+    """Primary agent for content processing and knowledge creation."""
     
-    Capabilities:
-    - Content summarization
-    - Entity extraction
-    - Topic identification
-    - Sentiment analysis
-    """
-    
-    def __init__(self, name: str = "ContentMind", description: str = "Content processing and analysis agent", 
-                 model_router: Optional[ModelRouter] = None):
-        super().__init__(name, description)
-        self.logger = logger
-        self.initialized = False
-        self.model_router = model_router
+    def __init__(self,
+                 agent_id: str = "content_mind",
+                 event_bus: Optional[EventBus] = None,
+                 workflow_engine: Optional[LangGraphWorkflowEngine] = None,
+                 llm_router: Optional[LLMRouter] = None,
+                 metadata: Optional[Dict[str, Any]] = None):
+        """Initialize ContentMind agent.
         
-    async def initialize(self) -> None:
-        """Initialize the ContentMind agent"""
-        self.logger.info(f"{self.name} agent initializing")
+        Args:
+            agent_id: Unique identifier for the agent
+            event_bus: Event bus for publishing events
+            workflow_engine: Workflow engine for orchestration
+            llm_router: LLM router for model access
+            metadata: Optional metadata
+        """
+        super().__init__(agent_id, metadata)
+        self.event_bus = event_bus
+        self.workflow_engine = workflow_engine
+        self.llm_router = llm_router or LLMRouter()
         
-        # Initialize model router if not provided
-        if not self.model_router:
-            self.model_router = await self._create_model_router()
+        # Initialize content processors
+        self.pdf_extractor = PDFExtractor()
+        self.url_extractor = URLExtractor()
+        self.audio_transcriber = AudioTranscriber(model_size="base")
+        self.digest_agent = DigestAgent(llm_router=self.llm_router)
         
-        # Register tools
-        self._register_tools()
+        self._initialized = False
         
-        self.initialized = True
-        self.logger.info(f"{self.name} agent initialized with {len(self.tools)} tools")
-    
-    async def _create_model_router(self) -> ModelRouter:
-        """Create a default model router with available providers"""
-        import os
-        router = ModelRouter()
-        
-        # Try to add available providers
-        try:
-            # Try Ollama first (local provider)
-            from services.model_router.ollama_provider import OllamaProvider
-            import httpx
-            ollama_base = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
+        # Processing templates
+        self.templates = {
+            "content_analysis": {
+                "system": """You are ContentMind, an expert content analysis agent.
+                Your task is to analyze content deeply and extract valuable insights.
+                Focus on understanding the main ideas, key facts, and implications.""",
+                
+                "prompt": """Analyze the following content:
+
+Title: {title}
+Type: {content_type}
+Source: {source}
+
+Content:
+{content}
+
+Please provide:
+1. Main Topic and Theme
+2. Key Points (5-7 bullet points)
+3. Important Facts and Figures
+4. Insights and Implications
+5. Related Topics for Further Research
+6. Suggested Tags for Classification
+
+Format your response as structured JSON."""
+            },
             
-            # Check if Ollama is running
-            try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(f"{ollama_base}/api/tags", timeout=2.0)
-                    if response.status_code == 200:
-                        ollama_config = LLMProviderConfig(
-                            provider_name="ollama",
-                            api_key="",  # Ollama doesn't need API key
-                            model_name="llama3",
-                            max_tokens=1000,
-                            temperature=0.7,
-                            metadata={"api_base": ollama_base}
-                        )
-                        await router.add_provider(ProviderType.OLLAMA, ollama_config)
-                        self.logger.info("Added Ollama provider to model router")
-            except:
-                self.logger.debug("Ollama not available")
+            "entity_extraction": {
+                "system": """You are an expert at extracting entities and relationships from text.
+                Focus on people, organizations, locations, dates, and their relationships.""",
+                
+                "prompt": """Extract entities from this content:
+
+{content}
+
+Identify:
+1. People (names, roles, affiliations)
+2. Organizations (companies, institutions)
+3. Locations (cities, countries, addresses)
+4. Dates and Time References
+5. Key Relationships between entities
+6. Important Events
+
+Format as structured data."""
+            }
+        }
+    
+    async def initialize(self) -> bool:
+        """Initialize the ContentMind agent."""
+        try:
+            # Initialize sub-components
+            await self.llm_router.initialize()
+            await self.digest_agent.initialize()
+            
+            # Initialize workflow if available
+            if self.workflow_engine:
+                # Register this agent with the workflow engine
+                self.workflow_engine.register_agent(self.agent_id, self)
+            
+            self._initialized = True
+            logger.info(f"ContentMind agent {self.agent_id} initialized successfully")
+            return True
+            
         except Exception as e:
-            self.logger.warning(f"Could not add Ollama provider: {e}")
+            logger.error(f"Error initializing ContentMind: {e}")
+            return False
+    
+    async def process(self, input: AgentInput) -> AgentOutput:
+        """Process incoming content and create structured knowledge.
+        
+        Args:
+            input: Agent input containing content to process
+            
+        Returns:
+            Agent output with processed content
+        """
+        if not self._initialized:
+            return AgentOutput(
+                success=False,
+                content={"error": "Agent not initialized"},
+                metadata={"agent_id": self.agent_id}
+            )
         
         try:
-            # Try Anthropic
-            from services.model_router.anthropic_provider import AnthropicProvider
-            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-            if anthropic_key:
-                anthropic_config = LLMProviderConfig(
-                    provider_name="anthropic",
-                    api_key=anthropic_key,
-                    model_name="claude-3-haiku-20240307",
-                    max_tokens=1000,
-                    temperature=0.7
+            # Determine content type
+            content_type = input.context.get("content_type", ContentType.TEXT)
+            
+            # Extract content based on type
+            extracted_content = await self._extract_content(input, content_type)
+            
+            if not extracted_content["success"]:
+                return AgentOutput(
+                    success=False,
+                    content={"error": extracted_content.get("error", "Extraction failed")},
+                    metadata={"agent_id": self.agent_id}
                 )
-                await router.add_provider(ProviderType.ANTHROPIC, anthropic_config)
-                self.logger.info("Added Anthropic provider to model router")
-        except Exception as e:
-            self.logger.warning(f"Could not add Anthropic provider: {e}")
-        
-        try:
-            # Try OpenAI
-            from services.model_router.openai_provider import OpenAIProvider
-            openai_key = os.getenv("OPENAI_API_KEY")
-            if openai_key:
-                openai_config = LLMProviderConfig(
-                    provider_name="openai",
-                    api_key=openai_key,
-                    model_name="gpt-3.5-turbo",
-                    max_tokens=1000,
-                    temperature=0.7
-                )
-                await router.add_provider(ProviderType.OPENAI, openai_config)
-                self.logger.info("Added OpenAI provider to model router")
-        except Exception as e:
-            self.logger.warning(f"Could not add OpenAI provider: {e}")
-        
-        try:
-            # Try Google Gemini
-            from services.model_router.google_provider import GoogleProvider
-            google_key = os.getenv("GOOGLE_GENERATIVEAI_API_KEY")
-            if google_key:
-                google_config = LLMProviderConfig(
-                    provider_name="google",
-                    api_key=google_key,
-                    model_name="gemini-1.5-flash",
-                    max_tokens=1000,
-                    temperature=0.7
-                )
-                await router.add_provider(ProviderType.GEMINI, google_config)
-                self.logger.info("Added Google provider to model router")
-        except Exception as e:
-            self.logger.warning(f"Could not add Google provider: {e}")
-        
-        # Router will use default fallback strategy
-        
-        return router
-    
-    def _register_tools(self) -> None:
-        """Register available tools for content processing"""
-        self.register_tool(Tool(
-            name="extract_summary",
-            description="Extract a summary from content",
-            function=self._extract_summary,
-            parameters={"content": "str", "max_length": "int"}
-        ))
-        
-        self.register_tool(Tool(
-            name="extract_entities",
-            description="Extract named entities from content",
-            function=self._extract_entities,
-            parameters={"content": "str"}
-        ))
-        
-        self.register_tool(Tool(
-            name="identify_topics",
-            description="Identify main topics in content",
-            function=self._identify_topics,
-            parameters={"content": "str"}
-        ))
-        
-        self.register_tool(Tool(
-            name="analyze_sentiment",
-            description="Analyze sentiment of content",
-            function=self._analyze_sentiment,
-            parameters={"content": "str"}
-        ))
-    
-    async def process(self, input_data: AgentInput) -> AgentOutput:
-        """Process content and extract insights"""
-        self.logger.info(f"Processing content from {input_data.source}")
-        
-        # Ensure agent is initialized
-        if not self.initialized:
-            await self.initialize()
-        
-        try:
-            content = input_data.content.get("text", "")
-            content_type = input_data.content.get("type", "text")
             
-            if not content:
-                raise ValueError("No content provided")
+            # Analyze content
+            analysis = await self._analyze_content(
+                content=extracted_content["content"],
+                metadata=extracted_content["metadata"]
+            )
             
-            # Run all analysis tasks concurrently
-            tasks = [
-                self._extract_summary(content, max_length=200),
-                self._extract_entities(content),
-                self._identify_topics(content),
-                self._analyze_sentiment(content)
-            ]
+            # Extract entities
+            entities = await self._extract_entities(extracted_content["content"])
             
-            summary, entities, topics, sentiment = await asyncio.gather(*tasks)
+            # Create summary
+            summary = await self._create_summary(
+                content=extracted_content["content"],
+                analysis=analysis
+            )
             
+            # Generate tags
+            tags = self._generate_tags(analysis, entities)
+            
+            # Compile results
             result = {
-                "content_type": content_type,
-                "summary": summary,
+                "content_type": content_type.value,
+                "extracted_content": extracted_content,
+                "analysis": analysis,
                 "entities": entities,
-                "topics": topics,
-                "sentiment": sentiment,
-                "metadata": {
-                    "source": input_data.source,
-                    "processed_at": input_data.metadata.get("timestamp"),
-                    "content_length": len(content)
+                "summary": summary,
+                "tags": tags,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Publish event if available
+            if self.event_bus:
+                await self.event_bus.publish({
+                    "event_type": "content.processed",
+                    "payload": {
+                        "agent_id": self.agent_id,
+                        "content_type": content_type.value,
+                        "tags": tags,
+                        "summary_length": len(summary.get("text", "")),
+                        "entity_count": len(entities.get("entities", []))
+                    }
+                })
+            
+            return AgentOutput(
+                success=True,
+                content=result,
+                metadata={
+                    "agent_id": self.agent_id,
+                    "processing_time": datetime.utcnow().isoformat(),
+                    "content_type": content_type.value
                 }
-            }
-            
-            self.logger.info(f"Successfully processed content: {len(entities)} entities, {len(topics)} topics")
-            
-            return AgentOutput(
-                task_id=input_data.task_id,
-                status="success",
-                result=result
             )
             
         except Exception as e:
-            self.logger.error(f"Error processing content: {str(e)}")
+            logger.error(f"Error in ContentMind processing: {e}")
             return AgentOutput(
-                task_id=input_data.task_id,
-                status="error",
-                error=str(e)
+                success=False,
+                content={"error": str(e)},
+                metadata={"agent_id": self.agent_id}
             )
     
-    async def _extract_summary(self, content: str, max_length: int = 200) -> str:
-        """Extract a summary from content using LLM"""
+    async def _extract_content(self, input: AgentInput, content_type: ContentType) -> Dict[str, Any]:
+        """Extract content based on type."""
         try:
-            # Create prompt for summarization
-            messages = [
-                LLMMessage(
-                    role="system",
-                    content="You are a content summarization expert. Create concise, informative summaries that capture the key points."
-                ),
-                LLMMessage(
-                    role="user",
-                    content=f"Please summarize the following content in {max_length} characters or less. Focus on the main ideas and key points:\n\n{content[:2000]}"
-                )
-            ]
-            
-            # Get LLM response
-            response = await self.model_router.chat(messages, max_tokens=100)
-            summary = response.text.strip()
-            
-            # Ensure summary doesn't exceed max_length
-            if len(summary) > max_length:
-                summary = summary[:max_length-3] + "..."
-            
-            return summary
-            
-        except Exception as e:
-            self.logger.error(f"Error in LLM summarization: {e}")
-            # Fallback to simple method
-            sentences = re.split(r'[.!?]', content)
-            summary = ""
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if sentence and len(summary) + len(sentence) <= max_length:
-                    summary += sentence + ". "
-                elif summary:
-                    break
-            return summary.strip() or content[:max_length] + "..."
-    
-    async def _extract_entities(self, content: str) -> List[Dict[str, Any]]:
-        """Extract named entities from content using LLM"""
-        try:
-            # Create prompt for entity extraction
-            messages = [
-                LLMMessage(
-                    role="system",
-                    content="You are an entity extraction expert. Identify and extract named entities from text, categorizing them accurately."
-                ),
-                LLMMessage(
-                    role="user",
-                    content=f"""Extract all named entities from the following text. Return them as a JSON array with this format:
-                    [{{
-                        "text": "entity text",
-                        "type": "PERSON/ORGANIZATION/LOCATION/EMAIL/URL/DATE/etc",
-                        "confidence": 0.0-1.0
-                    }}]
-                    
-                    Text: {content[:1500]}
-                    
-                    JSON:"""
-                )
-            ]
-            
-            # Get LLM response
-            response = await self.model_router.chat(messages, max_tokens=500, temperature=0.1)
-            
-            # Parse the JSON response
-            try:
-                entities = json.loads(response.text)
-                if not isinstance(entities, list):
-                    entities = []
-            except json.JSONDecodeError:
-                # Try to extract JSON from response
-                import re
-                json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
-                if json_match:
-                    try:
-                        entities = json.loads(json_match.group())
-                    except:
-                        entities = []
-                else:
-                    entities = []
-            
-            return entities
-            
-        except Exception as e:
-            self.logger.error(f"Error in LLM entity extraction: {e}")
-            # Fallback to pattern matching
-            entities = []
-            
-            # Extract emails
-            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-            for match in re.finditer(email_pattern, content):
-                entities.append({
-                    "text": match.group(),
-                    "type": "EMAIL",
-                    "confidence": 0.95
-                })
-            
-            # Extract URLs
-            url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-            for match in re.finditer(url_pattern, content):
-                entities.append({
-                    "text": match.group(),
-                    "type": "URL",
-                    "confidence": 0.95
-                })
-            
-            return entities
-    
-    async def _identify_topics(self, content: str) -> List[str]:
-        """Identify main topics in content using LLM"""
-        try:
-            # Create prompt for topic identification
-            messages = [
-                LLMMessage(
-                    role="system",
-                    content="You are a content analysis expert. Identify the main topics and themes in text accurately."
-                ),
-                LLMMessage(
-                    role="user",
-                    content=f"""Identify the main topics in the following text. Return them as a simple JSON array of topic strings.
-                    Focus on broad categories like: technology, business, science, health, politics, education, entertainment, sports, etc.
-                    
-                    Text: {content[:1500]}
-                    
-                    Topics (JSON array):"""
-                )
-            ]
-            
-            # Get LLM response
-            response = await self.model_router.chat(messages, max_tokens=100, temperature=0.3)
-            
-            # Parse the JSON response
-            try:
-                topics = json.loads(response.text)
-                if not isinstance(topics, list):
-                    topics = []
-                # Ensure all items are strings
-                topics = [str(topic) for topic in topics]
-            except json.JSONDecodeError:
-                # Try to extract JSON array from response
-                import re
-                json_match = re.search(r'\[.*\]', response.text)
-                if json_match:
-                    try:
-                        topics = json.loads(json_match.group())
-                        topics = [str(topic) for topic in topics]
-                    except:
-                        topics = []
-                else:
-                    # Try to extract comma-separated topics
-                    topics = [t.strip() for t in response.text.split(',') if t.strip()]
-            
-            return topics[:5]  # Limit to 5 topics
-            
-        except Exception as e:
-            self.logger.error(f"Error in LLM topic identification: {e}")
-            # Fallback to keyword matching
-            topics = []
-            topic_keywords = {
-                "technology": ["software", "hardware", "AI", "machine learning", "data"],
-                "business": ["company", "revenue", "profit", "market", "strategy"],
-                "science": ["research", "study", "experiment", "hypothesis", "theory"],
-                "health": ["medical", "health", "disease", "treatment", "patient"]
-            }
-            content_lower = content.lower()
-            for topic, keywords in topic_keywords.items():
-                if any(keyword in content_lower for keyword in keywords):
-                    topics.append(topic)
-            return topics
-    
-    async def _analyze_sentiment(self, content: str) -> Dict[str, Any]:
-        """Analyze sentiment of content using LLM"""
-        try:
-            # Create prompt for sentiment analysis
-            messages = [
-                LLMMessage(
-                    role="system",
-                    content="You are a sentiment analysis expert. Analyze the emotional tone and sentiment of text accurately."
-                ),
-                LLMMessage(
-                    role="user",
-                    content=f"""Analyze the sentiment of the following text and return a JSON object with this format:
-                    {{
-                        "sentiment": "positive/negative/neutral/mixed",
-                        "score": 0.0-1.0,
-                        "confidence": 0.0-1.0,
-                        "emotions": ["list", "of", "detected", "emotions"]
-                    }}
-                    
-                    Text: {content[:1000]}
-                    
-                    Sentiment analysis (JSON):"""
-                )
-            ]
-            
-            # Get LLM response
-            response = await self.model_router.chat(messages, max_tokens=150, temperature=0.1)
-            
-            # Parse the JSON response
-            try:
-                sentiment_data = json.loads(response.text)
-                # Ensure required fields exist
-                if not all(key in sentiment_data for key in ["sentiment", "score", "confidence"]):
-                    raise ValueError("Missing required fields")
-                return sentiment_data
-            except (json.JSONDecodeError, ValueError):
-                # Try to extract JSON from response
-                import re
-                json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
-                if json_match:
-                    try:
-                        sentiment_data = json.loads(json_match.group())
-                        return sentiment_data
-                    except:
-                        pass
-                
-                # Fallback parsing
-                sentiment = "neutral"
-                if "positive" in response.text.lower():
-                    sentiment = "positive"
-                elif "negative" in response.text.lower():
-                    sentiment = "negative"
-                
+            if content_type == ContentType.TEXT:
                 return {
-                    "sentiment": sentiment,
-                    "score": 0.5,
-                    "confidence": 0.7
+                    "success": True,
+                    "content": input.content,
+                    "metadata": {
+                        "source": "direct_input",
+                        "length": len(input.content)
+                    }
                 }
             
-        except Exception as e:
-            self.logger.error(f"Error in LLM sentiment analysis: {e}")
-            # Fallback to simple analysis
-            positive_words = ["good", "great", "excellent", "positive", "happy", "success"]
-            negative_words = ["bad", "poor", "negative", "sad", "failure", "problem"]
+            elif content_type == ContentType.PDF:
+                file_path = input.metadata.get("file_path")
+                if not file_path:
+                    return {"success": False, "error": "No file path provided"}
+                
+                extracted = await self.pdf_extractor.extract(file_path)
+                return {
+                    "success": bool(extracted["text"]),
+                    "content": extracted["text"],
+                    "metadata": extracted["metadata"]
+                }
             
-            content_lower = content.lower()
-            positive_count = sum(1 for word in positive_words if word in content_lower)
-            negative_count = sum(1 for word in negative_words if word in content_lower)
+            elif content_type == ContentType.URL:
+                url = input.content or input.metadata.get("url")
+                if not url:
+                    return {"success": False, "error": "No URL provided"}
+                
+                extracted = await self.url_extractor.extract(url)
+                return {
+                    "success": bool(extracted["content"].get("text")),
+                    "content": extracted["content"].get("text", ""),
+                    "metadata": {
+                        **extracted["metadata"],
+                        "title": extracted["content"].get("title"),
+                        "source": url
+                    }
+                }
             
-            if positive_count > negative_count:
-                sentiment = "positive"
-                score = min(positive_count / 10, 1.0)
-            elif negative_count > positive_count:
-                sentiment = "negative"
-                score = min(negative_count / 10, 1.0)
+            elif content_type == ContentType.AUDIO:
+                file_path = input.metadata.get("file_path")
+                if not file_path:
+                    return {"success": False, "error": "No file path provided"}
+                
+                transcribed = await self.audio_transcriber.transcribe(file_path)
+                return {
+                    "success": transcribed["status"] == "completed",
+                    "content": transcribed["transcription"].get("text", ""),
+                    "metadata": {
+                        **transcribed["metadata"],
+                        "language": transcribed["transcription"].get("language")
+                    }
+                }
+            
             else:
-                sentiment = "neutral"
-                score = 0.5
-            
-            return {
-                "sentiment": sentiment,
-                "score": score,
-                "confidence": 0.7
-            }
+                return {"success": False, "error": f"Unsupported content type: {content_type}"}
+                
+        except Exception as e:
+            logger.error(f"Error extracting content: {e}")
+            return {"success": False, "error": str(e)}
     
-    async def shutdown(self) -> None:
-        """Cleanup when the agent is shut down"""
-        self.logger.info(f"Shutting down {self.name} agent")
-        # Add any cleanup code here
-        self.tools.clear()
+    async def _analyze_content(self, content: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze content using LLM."""
+        try:
+            template = self.templates["content_analysis"]
+            
+            messages = [
+                LLMMessage(role="system", content=template["system"]),
+                LLMMessage(
+                    role="user",
+                    content=template["prompt"].format(
+                        title=metadata.get("title", "Untitled"),
+                        content_type=metadata.get("content_type", "text"),
+                        source=metadata.get("source", "Unknown"),
+                        content=content[:3000]  # Limit content length
+                    )
+                )
+            ]
+            
+            response = await self.llm_router.generate(
+                messages=messages,
+                model_preferences=["gpt-4", "claude-3-opus"],
+                max_tokens=800
+            )
+            
+            # Parse JSON response
+            import json
+            try:
+                analysis = json.loads(response.content)
+            except:
+                # Fallback to text response
+                analysis = {"raw_response": response.content}
+            
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Error analyzing content: {e}")
+            return {"error": str(e)}
+    
+    async def _extract_entities(self, content: str) -> Dict[str, Any]:
+        """Extract entities from content."""
+        try:
+            template = self.templates["entity_extraction"]
+            
+            messages = [
+                LLMMessage(role="system", content=template["system"]),
+                LLMMessage(
+                    role="user",
+                    content=template["prompt"].format(content=content[:2000])
+                )
+            ]
+            
+            response = await self.llm_router.generate(
+                messages=messages,
+                model_preferences=["gpt-4", "claude-3-opus"],
+                max_tokens=500
+            )
+            
+            # Parse response
+            import json
+            try:
+                entities = json.loads(response.content)
+            except:
+                entities = {"raw_response": response.content}
+            
+            return entities
+            
+        except Exception as e:
+            logger.error(f"Error extracting entities: {e}")
+            return {"error": str(e)}
+    
+    async def _create_summary(self, content: str, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Create content summary using DigestAgent."""
+        try:
+            # Prepare input for DigestAgent
+            digest_input = AgentInput(
+                content=content,
+                context={"content_type": "article"},
+                metadata={
+                    "title": analysis.get("title", "Untitled"),
+                    "analysis": analysis
+                }
+            )
+            
+            result = await self.digest_agent.process(digest_input)
+            
+            if result.success:
+                return result.content
+            else:
+                return {"error": "Summary generation failed"}
+                
+        except Exception as e:
+            logger.error(f"Error creating summary: {e}")
+            return {"error": str(e)}
+    
+    def _generate_tags(self, analysis: Dict[str, Any], entities: Dict[str, Any]) -> List[str]:
+        """Generate tags from analysis and entities."""
+        tags = []
+        
+        # Extract tags from analysis
+        if "suggested_tags" in analysis:
+            tags.extend(analysis["suggested_tags"])
+        
+        # Extract tags from entities
+        if "organizations" in entities:
+            tags.extend([org.get("name", "") for org in entities["organizations"]][:3])
+        
+        if "topics" in analysis:
+            tags.extend(analysis["topics"][:5])
+        
+        # Clean and deduplicate
+        tags = list(set(tag.lower().strip() for tag in tags if tag))
+        
+        return tags[:10]  # Limit to 10 tags
+    
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Get agent capabilities."""
+        return {
+            "agent_id": self.agent_id,
+            "type": "content_processing",
+            "supported_content_types": [ct.value for ct in ContentType],
+            "features": [
+                "pdf_extraction",
+                "url_extraction",
+                "audio_transcription",
+                "content_analysis",
+                "entity_extraction",
+                "summarization",
+                "tag_generation"
+            ],
+            "sub_agents": ["digest_agent"],
+            "max_content_size": 10_000_000  # 10MB
+        }
+    
+    async def process_batch(self, items: List[Dict[str, Any]]) -> List[AgentOutput]:
+        """Process multiple content items in batch."""
+        tasks = []
+        
+        for item in items:
+            input_data = AgentInput(
+                content=item.get("content", ""),
+                context=item.get("context", {}),
+                metadata=item.get("metadata", {})
+            )
+            tasks.append(self.process(input_data))
+        
+        return await asyncio.gather(*tasks)
+    
+    async def shutdown(self) -> bool:
+        """Shutdown the agent."""
+        try:
+            # Shutdown sub-agents
+            await self.digest_agent.shutdown()
+            
+            self._initialized = False
+            logger.info(f"ContentMind agent {self.agent_id} shutdown successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error shutting down ContentMind: {e}")
+            return False
+
+
+# Example usage
+if __name__ == "__main__":
+    async def example_usage():
+        # Create ContentMind agent
+        agent = ContentMind()
+        
+        # Initialize
+        await agent.initialize()
+        
+        # Example 1: Process text content
+        text_input = AgentInput(
+            content="Artificial Intelligence is transforming industries...",
+            context={"content_type": ContentType.TEXT},
+            metadata={"source": "manual_input"}
+        )
+        
+        result = await agent.process(text_input)
+        print("Text processing result:", result.content.get("summary"))
+        
+        # Example 2: Process URL
+        url_input = AgentInput(
+            content="https://example.com/article",
+            context={"content_type": ContentType.URL},
+            metadata={}
+        )
+        
+        # This would process the URL if valid
+        # url_result = await agent.process(url_input)
+        
+        # Shutdown
+        await agent.shutdown()
+    
+    # Run example
+    asyncio.run(example_usage())

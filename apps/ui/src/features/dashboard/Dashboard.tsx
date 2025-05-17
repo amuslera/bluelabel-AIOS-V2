@@ -4,6 +4,7 @@ import { RetroCard } from '../../components/UI/RetroCard';
 import { RetroLoader } from '../../components/UI/RetroLoader';
 import { FileUploadModal } from '../../components/UI/FileUploadModal';
 import { systemAPI } from '../../api/system';
+import { filesAPI } from '../../api/files';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import type { SystemHealth, SystemActivity } from '../../api/system';
 import type { WebSocketMessage } from '../../services/websocket';
@@ -187,11 +188,31 @@ export const Dashboard: React.FC = () => {
 
   const handleFileUpload = async (file: File) => {
     try {
-      // TODO: Implement actual file upload API call
-      // await filesAPI.upload(file);
-      alert(`File "${file.name}" uploaded successfully!`);
+      // Show loading state
+      const originalText = window.document.title;
+      window.document.title = 'Uploading...';
+      
+      // Upload file using the filesAPI
+      const fileInfo = await filesAPI.uploadFile(file);
+      
+      // Add to activities
+      const uploadActivity: SystemActivity = {
+        id: fileInfo.id,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        type: 'File Upload',
+        description: `Uploaded ${file.name}`,
+        source: 'File System',
+        status: 'success'
+      };
+      
+      setActivities(prev => [uploadActivity, ...prev.slice(0, 4)]);
+      
+      // Success notification
+      window.document.title = originalText;
+      console.log(`File "${file.name}" uploaded successfully!`);
     } catch (error) {
       setError('Failed to upload file');
+      console.error('Upload error:', error);
     }
   };
 

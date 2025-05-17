@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CommandInput } from './CommandInput';
 import { OutputLine, OutputLineData } from './OutputLine';
 import { terminalCommands } from '../../utils/terminalCommands';
+import { RunAgentModal } from '../RunAgentModal';
+import { FileUploadModal } from '../UI/FileUploadModal';
 
 export const Terminal: React.FC = () => {
   const [input, setInput] = useState('');
@@ -17,6 +19,9 @@ export const Terminal: React.FC = () => {
   ]);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [showRunAgent, setShowRunAgent] = useState(false);
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<string | undefined>();
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +48,21 @@ export const Terminal: React.FC = () => {
       // Execute command
       const result = await terminalCommands.execute(command, args);
       
-      if (result.output) {
+      // Handle special system commands
+      if (result.output === '_OPEN_RUN_AGENT_PANEL_') {
+        setSelectedAgent(args[0]);
+        setShowRunAgent(true);
+        setHistory([...newHistory, {
+          type: 'info',
+          content: 'Opening agent execution panel...',
+        }]);
+      } else if (result.output === '_OPEN_FILE_UPLOAD_') {
+        setShowFileUpload(true);
+        setHistory([...newHistory, {
+          type: 'info',
+          content: 'Opening file upload dialog...',
+        }]);
+      } else if (result.output) {
         setHistory([...newHistory, {
           type: result.type || 'output',
           content: result.output,
@@ -85,27 +104,49 @@ export const Terminal: React.FC = () => {
   };
 
   return (
-    <div className="border-2 border-terminal-cyan p-4 ascii-border bg-terminal-dark h-full flex flex-col">
-      <div className="text-terminal-cyan mb-2 text-xl font-bold">
-        TERMINAL
-      </div>
-      
-      <div 
-        ref={outputRef}
-        className="flex-1 overflow-y-auto space-y-0"
-      >
-        {history.map((line, index) => (
-          <OutputLine key={index} {...line} />
-        ))}
-        <div className="mt-2">
-          <CommandInput
-            value={input}
-            onChange={setInput}
-            onSubmit={handleSubmit}
-            onHistoryNavigate={handleHistoryNavigate}
-          />
+    <>
+      <div className="border-2 border-terminal-cyan p-4 ascii-border bg-terminal-dark h-full flex flex-col">
+        <div className="text-terminal-cyan mb-2 text-xl font-bold">
+          TERMINAL
+        </div>
+        
+        <div 
+          ref={outputRef}
+          className="flex-1 overflow-y-auto space-y-0"
+        >
+          {history.map((line, index) => (
+            <OutputLine key={index} {...line} />
+          ))}
+          <div className="mt-2">
+            <CommandInput
+              value={input}
+              onChange={setInput}
+              onSubmit={handleSubmit}
+              onHistoryNavigate={handleHistoryNavigate}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      
+      {/* Modals */}
+      <RunAgentModal
+        isOpen={showRunAgent}
+        onClose={() => setShowRunAgent(false)}
+        agentId={selectedAgent}
+      />
+      
+      {showFileUpload && (
+        <FileUploadModal
+          onClose={() => setShowFileUpload(false)}
+          onUploadSuccess={(fileId) => {
+            setShowFileUpload(false);
+            setHistory(prev => [...prev, {
+              type: 'info',
+              content: `File uploaded successfully: ${fileId}`,
+            }]);
+          }}
+        />
+      )}
+    </>
   );
 };

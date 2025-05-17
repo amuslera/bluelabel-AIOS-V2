@@ -46,6 +46,25 @@ redis>=4.5.0
 # System monitoring
 psutil>=7.0.0
 
+# PDF processing
+PyPDF2>=3.0.0
+pdfplumber>=0.11.0
+python-magic>=0.4.0
+
+# URL content extraction
+beautifulsoup4>=4.12.0
+html2text>=2020.1.16
+lxml>=5.0.0
+newspaper3k>=0.2.8
+
+# Audio transcription
+openai-whisper>=20240120  # OpenAI's Whisper model
+pydub>=0.25.0  # Audio file manipulation
+
+# Workflow orchestration
+langgraph>=0.0.20  # LangChain's graph-based workflow orchestration
+langchain>=0.1.0  # Required for LangGraph
+
 # Testing
 pytest>=7.0.0
 pytest-cov>=4.1.0

@@ -4,6 +4,7 @@ import { RetroButton } from '../../components/UI/RetroButton';
 import { RetroLoader } from '../../components/UI/RetroLoader';
 import { agentsAPI } from '../../api/agents';
 import type { Agent } from '../../api/agents';
+import { RunAgentPanel } from '../../components/RunAgentPanel';
 
 export const Agents: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -82,14 +83,12 @@ export const Agents: React.FC = () => {
       </div>
 
       {selectedAgent && (
-        <RetroCard title={`EXECUTE ${(selectedAgent.name || 'UNKNOWN').toUpperCase()}`}>
-          <div className="text-terminal-cyan mb-4">
-            Agent execution interface would appear here
-          </div>
-          <RetroButton onClick={() => setSelectedAgent(null)} variant="error">
-            CANCEL
-          </RetroButton>
-        </RetroCard>
+        <div className="mt-6">
+          <RunAgentPanel 
+            agentId={selectedAgent.name?.toLowerCase() || selectedAgent.id}
+            onClose={() => setSelectedAgent(null)}
+          />
+        </div>
       )}
     </div>
   );

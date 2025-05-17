@@ -18,12 +18,12 @@ async def get_current_user(
     2. Extract user claims
     3. Return User object with proper tenant_id
     """
-    # For MVP, we'll create a mock user
+    # For MVP, we'll use a fixed user ID for testing
     # TODO: Implement proper JWT validation
     return User(
-        id=str(uuid.uuid4()),
+        id="f47ac10b-58cc-4372-a567-0e02b2c3d479",  # Fixed UUID for testing
         email="ariel@example.com",
-        tenant_id=str(uuid.uuid4())
+        tenant_id="550e8400-e29b-41d4-a716-446655440000"  # Fixed tenant ID
     )
 
 def get_optional_current_user(

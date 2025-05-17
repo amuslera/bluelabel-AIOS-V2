@@ -425,6 +425,28 @@ const commands: Record<string, Command> = {
       };
     },
   },
+
+  execute: {
+    description: 'Open agent execution panel',
+    usage: 'execute [agent_name]',
+    execute: async (args) => {
+      return {
+        output: '_OPEN_RUN_AGENT_PANEL_',
+        type: 'system',
+      };
+    },
+  },
+
+  upload: {
+    description: 'Upload and process a file',
+    usage: 'upload',
+    execute: async (args) => {
+      return {
+        output: '_OPEN_FILE_UPLOAD_',
+        type: 'system',
+      };
+    },
+  },
 };
 
 export const terminalCommands = {

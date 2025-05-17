@@ -15,7 +15,7 @@ from apps.api.middleware.request_id import request_id_middleware
 from core.config_validator import validate_config_on_startup
 
 # Import routers
-from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication, workflows, files, status, health
+from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication, workflows, files_simple, files_process, status, health, setup
 
 # Load environment variables
 load_dotenv()
@@ -42,6 +42,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Add request ID middleware
@@ -119,7 +120,8 @@ async def health_check():
 
 # Include routers
 app.include_router(health.router)  # Health check at root level
-app.include_router(files.router)  # Files at /api/v1/files
+app.include_router(files_simple.router)  # Files at /api/v1/files
+app.include_router(files_process.router)  # File processing
 app.include_router(status.router)  # Status at /api/v1/status
 app.include_router(gateway.router, prefix="/api/v1/gateway", tags=["gateway"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
@@ -132,6 +134,7 @@ app.include_router(gmail_complete.router, prefix="/api/v1/gmail-complete", tags=
 app.include_router(email.router, prefix="/api/v1/email", tags=["email"])
 app.include_router(communication.router, prefix="/api/v1/communication", tags=["communication"])
 app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["workflows"])
+app.include_router(setup.router, tags=["setup"])
 
 # Register agent startup events
 from apps.api.routers.agents import startup_event as agent_startup
