@@ -137,18 +137,18 @@ async def test_content_processing(content_mind_agent):
     result = await content_mind_agent.process(input_data)
     
     # Verify result structure
-    assert result.success
-    assert "content_type" in result.content
-    assert "analysis" in result.content
-    assert "entities" in result.content
-    assert "summary" in result.content
-    assert "tags" in result.content
+    assert result.status == "success"
+    assert "content_type" in result.result
+    assert "analysis" in result.result
+    assert "entities" in result.result
+    assert "summary" in result.result
+    assert "tags" in result.result
     
     # Verify content type
-    assert result.content["content_type"] == "text"
+    assert result.result["content_type"] == "text"
     
     # Verify analysis contains expected fields
-    analysis = result.content["analysis"]
+    analysis = result.result["analysis"]
     assert "main_topic" in analysis
     assert "key_points" in analysis
     assert "facts" in analysis
@@ -174,8 +174,8 @@ async def test_prompt_rendering(content_mind_agent):
     result = await content_mind_agent.process(input_data)
     
     # Verify prompt rendering
-    assert result.success
-    analysis = result.content["analysis"]
+    assert result.status == "success"
+    analysis = result.result["analysis"]
     
     # Check that the analysis contains structured data
     assert isinstance(analysis["key_points"], list)
@@ -200,8 +200,8 @@ async def test_error_handling(content_mind_agent):
     )
     
     result = await content_mind_agent.process(input_data)
-    assert not result.success
-    assert "error" in result.content
+    assert result.status == "error"
+    assert "error" in result.result
     
     # Test with empty content
     input_data = AgentInput(
@@ -212,5 +212,5 @@ async def test_error_handling(content_mind_agent):
     )
     
     result = await content_mind_agent.process(input_data)
-    assert not result.success
-    assert "error" in result.content 
+    assert result.status == "error"
+    assert "error" in result.result 

@@ -10,6 +10,7 @@ class AgentInput(BaseModel):
     source: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
     content: Dict[str, Any] = Field(default_factory=dict)
+    context: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentOutput(BaseModel):
@@ -31,9 +32,10 @@ class Tool(BaseModel):
 class Agent(ABC):
     """Base class for all agents in the system"""
     
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str, agent_id: Optional[str] = None):
         self.name = name
         self.description = description
+        self.agent_id = agent_id or str(uuid.uuid4())
         self.tools: List[Tool] = []
         # Initialize is called manually by the runtime manager
     
@@ -60,6 +62,7 @@ class Agent(ABC):
         return {
             "name": self.name,
             "description": self.description,
+            "agent_id": self.agent_id,
             "tools": [{
                 "name": tool.name,
                 "description": tool.description,

@@ -54,10 +54,15 @@ class ContentMind(Agent):
             llm_router: LLM router for model access
             metadata: Optional metadata
         """
-        super().__init__(agent_id, metadata)
+        super().__init__(
+            name="ContentMind",
+            description="Primary agent for content processing and knowledge creation",
+            agent_id=agent_id
+        )
         self.event_bus = event_bus
         self.workflow_engine = workflow_engine
         self.llm_router = llm_router or LLMRouter()
+        self.metadata = metadata or {}
         
         # Initialize content processors
         self.pdf_extractor = PDFExtractor()
@@ -145,9 +150,10 @@ Format as structured data."""
         """
         if not self._initialized:
             return AgentOutput(
-                success=False,
-                content={"error": "Agent not initialized"},
-                metadata={"agent_id": self.agent_id}
+                task_id=input.task_id,
+                status="error",
+                result={"error": "Agent not initialized"},
+                error="Agent not initialized"
             )
         
         try:
@@ -159,9 +165,10 @@ Format as structured data."""
             
             if not extracted_content["success"]:
                 return AgentOutput(
-                    success=False,
-                    content={"error": extracted_content.get("error", "Extraction failed")},
-                    metadata={"agent_id": self.agent_id}
+                    task_id=input.task_id,
+                    status="error",
+                    result={"error": extracted_content.get("error", "Extraction failed")},
+                    error=extracted_content.get("error", "Extraction failed")
                 )
             
             # Analyze content
@@ -207,21 +214,19 @@ Format as structured data."""
                 })
             
             return AgentOutput(
-                success=True,
-                content=result,
-                metadata={
-                    "agent_id": self.agent_id,
-                    "processing_time": datetime.utcnow().isoformat(),
-                    "content_type": content_type.value
-                }
+                task_id=input.task_id,
+                status="success",
+                result=result,
+                error=None
             )
             
         except Exception as e:
             logger.error(f"Error in ContentMind processing: {e}")
             return AgentOutput(
-                success=False,
-                content={"error": str(e)},
-                metadata={"agent_id": self.agent_id}
+                task_id=input.task_id,
+                status="error",
+                result={"error": str(e)},
+                error=str(e)
             )
     
     async def _extract_content(self, input: AgentInput, content_type: ContentType) -> Dict[str, Any]:
