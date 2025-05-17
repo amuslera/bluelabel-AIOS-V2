@@ -36,7 +36,7 @@ except ImportError:
     FileBase = None
     
 try:
-    from services.knowledge.models import ContentItem, Tag, Concept, SearchQuery, Base as KnowledgeBase
+    from services.knowledge.models import ContentItem, Tag, Concept, SearchQuery, KnowledgeItem, KnowledgeRelationship, KnowledgeAttachment, Base as KnowledgeBase
 except ImportError:
     KnowledgeBase = None
     
