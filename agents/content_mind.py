@@ -155,14 +155,12 @@ Format as structured data."""
                 result={"error": "Agent not initialized"},
                 error="Agent not initialized"
             )
-        
         try:
             # Determine content type
             content_type = input.context.get("content_type", ContentType.TEXT)
-            
+
             # Extract content based on type
             extracted_content = await self._extract_content(input, content_type)
-            
             if not extracted_content["success"]:
                 return AgentOutput(
                     task_id=input.task_id,
@@ -170,25 +168,58 @@ Format as structured data."""
                     result={"error": extracted_content.get("error", "Extraction failed")},
                     error=extracted_content.get("error", "Extraction failed")
                 )
-            
+
+            # Always get the string content for downstream steps
+            content_str = extracted_content["content"]
+            if isinstance(content_str, dict):
+                # Try to extract 'text' key if present
+                content_str = content_str.get("text", "")
+            if not isinstance(content_str, str):
+                content_str = str(content_str)
+            if not content_str.strip():
+                return AgentOutput(
+                    task_id=input.task_id,
+                    status="error",
+                    result={"error": "Content is empty after extraction"},
+                    error="Content is empty after extraction"
+                )
+
             # Analyze content
             analysis = await self._analyze_content(
-                content=extracted_content["content"],
+                content=content_str,
                 metadata=extracted_content["metadata"]
             )
-            
+            if "error" in analysis:
+                return AgentOutput(
+                    task_id=input.task_id,
+                    status="error",
+                    result={"error": f"Analysis failed: {analysis['error']}"},
+                    error=f"Analysis failed: {analysis['error']}"
+                )
+
             # Extract entities
-            entities = await self._extract_entities(extracted_content["content"])
-            
+            entities = await self._extract_entities(content_str)
+            if "error" in entities:
+                return AgentOutput(
+                    task_id=input.task_id,
+                    status="error",
+                    result={"error": f"Entity extraction failed: {entities['error']}"},
+                    error=f"Entity extraction failed: {entities['error']}"
+                )
+
             # Create summary
-            summary = await self._create_summary(
-                content=extracted_content["content"],
-                analysis=analysis
-            )
-            
+            summary = await self._create_summary(content_str, analysis)
+            if "error" in summary:
+                return AgentOutput(
+                    task_id=input.task_id,
+                    status="error",
+                    result={"error": f"Summary generation failed: {summary['error']}"},
+                    error=f"Summary generation failed: {summary['error']}"
+                )
+
             # Generate tags
             tags = self._generate_tags(analysis, entities)
-            
+
             # Compile results
             result = {
                 "content_type": content_type.value,
@@ -199,7 +230,7 @@ Format as structured data."""
                 "tags": tags,
                 "timestamp": datetime.utcnow().isoformat()
             }
-            
+
             # Publish event if available
             if self.event_bus:
                 await self.event_bus.publish({
@@ -212,14 +243,13 @@ Format as structured data."""
                         "entity_count": len(entities.get("entities", []))
                     }
                 })
-            
+
             return AgentOutput(
                 task_id=input.task_id,
                 status="success",
                 result=result,
                 error=None
             )
-            
         except Exception as e:
             logger.error(f"Error in ContentMind processing: {e}")
             return AgentOutput(
@@ -233,12 +263,19 @@ Format as structured data."""
         """Extract content based on type."""
         try:
             if content_type == ContentType.TEXT:
+                # Accept both dict and str for input.content
+                if isinstance(input.content, dict):
+                    text = input.content.get("text", "")
+                else:
+                    text = str(input.content)
+                if not text.strip():
+                    return {"success": False, "error": "No text content provided"}
                 return {
                     "success": True,
-                    "content": input.content,
+                    "content": text,
                     "metadata": {
                         "source": "direct_input",
-                        "length": len(input.content)
+                        "length": len(text)
                     }
                 }
             
@@ -367,21 +404,19 @@ Format as structured data."""
         try:
             # Prepare input for DigestAgent
             digest_input = AgentInput(
-                content=content,
+                source="contentmind",
+                content={"text": content},
                 context={"content_type": "article"},
                 metadata={
                     "title": analysis.get("title", "Untitled"),
                     "analysis": analysis
                 }
             )
-            
             result = await self.digest_agent.process(digest_input)
-            
-            if result.success:
-                return result.content
+            if hasattr(result, "status") and result.status == "success":
+                return result.result
             else:
                 return {"error": "Summary generation failed"}
-                
         except Exception as e:
             logger.error(f"Error creating summary: {e}")
             return {"error": str(e)}

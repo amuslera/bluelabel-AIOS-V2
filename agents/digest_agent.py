@@ -153,9 +153,10 @@ Include:
         """
         if not self._initialized:
             return AgentOutput(
-                success=False,
-                content={"error": "Agent not initialized"},
-                metadata={"agent_id": self.agent_id}
+                task_id=input.task_id,
+                status="error",
+                result={"error": "Agent not initialized"},
+                error="Agent not initialized"
             )
         
         try:
@@ -220,26 +221,24 @@ Include:
                 })
             
             return AgentOutput(
-                success=True,
-                content={
+                task_id=input.task_id,
+                status="success",
+                result={
                     "summary": processed_summary,
                     "content_type": content_type,
                     "word_count": len(processed_summary.split()),
                     "timestamp": datetime.utcnow().isoformat()
                 },
-                metadata={
-                    "agent_id": self.agent_id,
-                    "template_used": content_type,
-                    "model_used": response.model if hasattr(response, 'model') else None
-                }
+                error=None
             )
             
         except Exception as e:
             logger.error(f"Error in DigestAgent processing: {e}")
             return AgentOutput(
-                success=False,
-                content={"error": str(e)},
-                metadata={"agent_id": self.agent_id}
+                task_id=input.task_id,
+                status="error",
+                result={"error": str(e)},
+                error=str(e)
             )
     
     def _format_digest_items(self, items: List[Dict[str, Any]]) -> str:
