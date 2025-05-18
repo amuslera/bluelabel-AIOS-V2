@@ -37,7 +37,7 @@ async def get_digest_agent() -> DigestAgentMVP:
     """Get or create a DigestAgent instance."""
     # In production, this should be a singleton or managed instance
     agent = DigestAgentMVP()
-    await agent.initialize()
+    agent.initialize()
     return agent
 
 
