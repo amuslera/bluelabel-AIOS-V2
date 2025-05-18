@@ -12,20 +12,27 @@ from sqlalchemy.sql import text
 
 # revision identifiers, used by Alembic.
 revision = '002'
-down_revision = '001_initial_schema'
+down_revision = '001'
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    # Create ENUM types first
-    op.execute("CREATE TYPE sourcetype AS ENUM ('email', 'whatsapp', 'pdf', 'url', 'manual')")
-    op.execute("CREATE TYPE contenttype AS ENUM ('summary', 'transcript', 'extraction', 'note')")
-    op.execute("CREATE TYPE knowledgestatus AS ENUM ('draft', 'active', 'archived', 'deleted')")
-    op.execute("CREATE TYPE reviewstatus AS ENUM ('pending', 'reviewed', 'approved', 'rejected')")
-    op.execute("CREATE TYPE relationshiptype AS ENUM ('derived_from', 'related_to', 'summarizes', 'references')")
+    # Create ENUM types first (with check for existence)
+    op.execute("DO $$ BEGIN CREATE TYPE sourcetype AS ENUM ('email', 'whatsapp', 'pdf', 'url', 'manual'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE contenttype AS ENUM ('summary', 'transcript', 'extraction', 'note'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE knowledgestatus AS ENUM ('draft', 'active', 'archived', 'deleted'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE reviewstatus AS ENUM ('pending', 'reviewed', 'approved', 'rejected'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE relationshiptype AS ENUM ('derived_from', 'related_to', 'summarizes', 'references'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
     
-    # Create knowledge_items table
+    # Create knowledge_items table (check if not exists)
+    from sqlalchemy import text
+    conn = op.get_bind()
+    result = conn.execute(text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'knowledge_items')"))
+    if result.scalar():
+        print("knowledge_items table already exists, skipping creation")
+        return
+        
     op.create_table('knowledge_items',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, default=sa.text('gen_random_uuid()')),
         sa.Column('agent_id', sa.String(length=255), nullable=False),

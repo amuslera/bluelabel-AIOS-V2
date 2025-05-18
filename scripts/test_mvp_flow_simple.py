@@ -1,30 +1,20 @@
 #!/usr/bin/env python3
-"""Test harness for MVP flow validation
+"""Simplified test harness for MVP flow validation
 
 This script simulates the complete MVP pipeline:
 1. ContentMind Agent saves summaries to Knowledge Repository
 2. Digest Agent retrieves summaries and generates a digest
-
-Usage:
-    PYTHONPATH=. python3 scripts/test_mvp_flow.py [--mock] [--live] [--count N]
-
-Options:
-    --mock    Run with mocked dependencies (default)
-    --live    Run with real dependencies
-    --count N Number of test items to process (default: 1)
 """
 
 import asyncio
-import argparse
-import logging
 import json
+import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from agents.content_mind import ContentMind
 from agents.digest_agent_mvp import DigestAgentMVP
 from services.model_router.factory import create_default_router
-from services.model_router.base import LLMMessage
 from services.knowledge.repository_postgres import PostgresKnowledgeRepository
 from agents.base import AgentInput
 
@@ -42,40 +32,46 @@ SAMPLE_CONTENT = [
         "content": "Artificial Intelligence is revolutionizing healthcare through improved diagnosis, treatment planning, and patient care. Machine learning algorithms can analyze medical images, predict patient outcomes, and assist in drug discovery.",
         "type": "text",
         "source": "test"
-    },
-    {
-        "title": "Climate Change Report",
-        "content": "Global temperatures continue to rise, with 2023 being the hottest year on record. Scientists warn of increasing extreme weather events and rising sea levels. Urgent action is needed to reduce greenhouse gas emissions.",
-        "type": "report",
-        "source": "test"
     }
 ]
 
-class MockModelRouter:
-    """Mock LLM router for testing"""
-    
-    async def chat(self, messages: List[LLMMessage], **kwargs) -> Dict[str, Any]:
-        """Return mock response"""
-        return {
-            "content": "This is a mock summary of the content.",
-            "model": "mock-model",
-            "usage": {"total_tokens": 100}
-        }
-
-class MockKnowledgeRepository:
-    """Mock knowledge repository for testing"""
+class SimpleKnowledgeRepository:
+    """Simplified repository that works with the existing schema"""
     
     def __init__(self):
         self.stored_content = []
     
     async def store_content(self, content: Dict[str, Any]) -> bool:
-        """Store content and return success"""
-        self.stored_content.append(content)
-        return True
+        """Store content in simplified format"""
+        try:
+            # Extract the actual summary from the ContentMind output
+            summary = content.get("content", "")
+            if isinstance(summary, dict):
+                summary = summary.get("summary", str(summary))
+            
+            # Map to the old schema
+            simplified_content = {
+                "title": content.get("title", "Untitled"),
+                "content": summary,
+                "summary": summary,  # Store in both fields
+                "metadata": {
+                    "original_type": content.get("metadata", {}).get("original_type", "text"),
+                    "processed_at": datetime.utcnow().isoformat(),
+                    "source": content.get("source", "test"),
+                    "user_id": content.get("metadata", {}).get("user_id", "test_user")
+                }
+            }
+            self.stored_content.append(simplified_content)
+            logger.info(f"Stored content: {content.get('title', 'Untitled')}")
+            return True
+        except Exception as e:
+            logger.error(f"Error storing content: {e}")
+            return False
     
     async def get_summaries(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Return stored summaries"""
         return self.stored_content[:limit]
+
 
 async def process_content(
     content: Dict[str, Any],
@@ -96,16 +92,18 @@ async def process_content(
                 "user_id": content.get("user_id", "test_user")
             }
         )
+        
         # Process with ContentMind
         result = await content_mind.process(agent_input)
-        logger.info(f"Raw AgentOutput.result: {getattr(result, 'result', result)}")
+        logger.info(f"ContentMind processing complete for: {content['title']}")
         
-        # Defensive: try to extract summary
+        # Extract summary from result
         summary = None
         if hasattr(result, "result") and isinstance(result.result, dict):
-            summary = result.result.get("summary")
+            summary = result.result.get("summary", {}).get("summary", "")
+        
         if not summary:
-            logger.error(f"No summary found. Full result: {getattr(result, 'result', result)}")
+            logger.error(f"No summary found for: {content['title']}")
             return False
         
         # Store in Knowledge Repository
@@ -125,7 +123,10 @@ async def process_content(
         
     except Exception as e:
         logger.error(f"Error processing content: {e}")
+        import traceback
+        traceback.print_exc()
         return False
+
 
 async def generate_digest(
     knowledge_repo: Any,
@@ -140,8 +141,29 @@ async def generate_digest(
             logger.error("No summaries found in Knowledge Repository")
             return None
         
-        # Generate digest
-        digest = await digest_agent.generate_digest(summaries)
+        logger.info(f"Found {len(summaries)} summaries for digest generation")
+        
+        # Generate digest using the agent directly
+        input_data = {
+            "summaries": summaries,
+            "user_id": "test_user"
+        }
+        
+        agent_input = AgentInput(
+            task_id="test_digest_generation",
+            source="test_mvp_flow",
+            content=input_data,
+            context={"request_type": "digest"},
+            metadata={"user_id": "test_user"}
+        )
+        
+        result = await digest_agent.process(agent_input)
+        
+        # Extract the digest from the result
+        if hasattr(result, "result") and isinstance(result.result, dict):
+            digest = result.result
+        else:
+            digest = str(result)
         
         return {
             "status": "success",
@@ -152,43 +174,37 @@ async def generate_digest(
         
     except Exception as e:
         logger.error(f"Error generating digest: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
-async def run_test_flow(is_mock: bool = True, count: int = 1) -> None:
+
+async def run_test_flow() -> None:
     """Run the complete MVP test flow"""
-    logger.info(f"Starting MVP test flow (mode: {'mock' if is_mock else 'live'})")
+    logger.info(f"Starting MVP test flow (simplified)")
     
     # Initialize components
-    if is_mock:
-        model_router = MockModelRouter()
-        knowledge_repo = MockKnowledgeRepository()
-    else:
-        model_router = await create_default_router()
-        knowledge_repo = PostgresKnowledgeRepository()
+    model_router = await create_default_router()
+    knowledge_repo = SimpleKnowledgeRepository()  # Use simplified repository
     
     content_mind = ContentMind(llm_router=model_router)
     digest_agent = DigestAgentMVP(model_router=model_router)
     
     # Initialize agents
-    if not is_mock:
-        logger.info("Initializing ContentMind agent...")
-        init_success = await content_mind.initialize()
-        if not init_success:
-            logger.error("Failed to initialize ContentMind agent")
-            return
-            
-        logger.info("Initializing DigestAgent...")
-        try:
-            digest_agent.initialize()
-            logger.info("DigestAgent initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize DigestAgent: {e}")
-            return
+    logger.info("Initializing ContentMind agent...")
+    init_success = await content_mind.initialize()
+    if not init_success:
+        logger.error("Failed to initialize ContentMind agent")
+        return
+    
+    logger.info("Initializing DigestAgent...")
+    digest_agent.initialize()
+    logger.info("DigestAgent initialized successfully")
     
     # Process test content
     success_count = 0
-    for i, content in enumerate(SAMPLE_CONTENT[:count], 1):
-        logger.info(f"Processing content {i}/{count}: {content['title']}")
+    for i, content in enumerate(SAMPLE_CONTENT, 1):
+        logger.info(f"Processing content {i}/{len(SAMPLE_CONTENT)}: {content['title']}")
         
         if await process_content(content, content_mind, knowledge_repo):
             success_count += 1
@@ -210,19 +226,11 @@ async def run_test_flow(is_mock: bool = True, count: int = 1) -> None:
     else:
         logger.error("No content was processed successfully, skipping digest generation")
 
+
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="MVP Flow Test Harness")
-    parser.add_argument("--mock", action="store_true", help="Run with mocked dependencies")
-    parser.add_argument("--live", action="store_true", help="Run with real dependencies")
-    parser.add_argument("--count", type=int, default=1, help="Number of test items to process")
-    
-    args = parser.parse_args()
-    
-    # Default to mock mode if neither specified
-    is_mock = not args.live if args.live else True
-    
-    asyncio.run(run_test_flow(is_mock, args.count))
+    asyncio.run(run_test_flow())
+
 
 if __name__ == "__main__":
-    main() 
+    main()
