@@ -583,6 +583,33 @@ Knowledge Repository stores → Digest Agent summarizes → Email response sent
 
 ---
 
+### TASK-020: Write Integration Tests for ContentMind Agent
+**Status**: completed ✓
+**Tags**: #backend #testing #integration
+**Order**: 20
+**Priority**: High
+**Phase**: 3
+**Estimated Time**: 6 hours
+**Dependencies**: TASK-018
+
+**Description**: Write integration tests for the ContentMind agent to ensure it processes content correctly and integrates with other components.
+
+**Acceptance Criteria**:
+- [x] Integration tests cover successful content processing
+- [x] Tests verify output structure and data types
+- [x] Error handling scenarios are tested
+- [x] Tests use mocked dependencies for LLM and MCP
+
+**Technical Details**:
+- Use pytest and pytest-asyncio for async testing
+- Mock LLM router and MCP manager
+- Test various content types and error scenarios
+
+**Known Issues** (if applicable):
+- None
+
+---
+
 ## Quick Start Tasks (Immediate Relief)
 
 ### QUICK-001: Emergency API Fix
@@ -611,27 +638,30 @@ Knowledge Repository stores → Digest Agent summarizes → Email response sent
 - None (Awaiting next task assignment)
 
 ### Up Next (MVP Core)
-1. TASK-006: Implement ContentMind Agent
-2. TASK-007: Implement Knowledge Repository
-3. TASK-008: Implement Email Gateway
-4. TASK-009: Implement Digest Agent
-5. TASK-010: Complete MVP Flow Integration
+1. TASK-005: Stabilize File Upload System
+2. TASK-008: Implement Email Gateway
+3. TASK-009: Implement Digest Agent
+4. TASK-010: Complete MVP Flow Integration
 
 ### Completed
 - TASK-001: Implement Centralized Logging System ✓
 - TASK-002: Debug API Startup Failures ✓
 - TASK-003: Execute Initial Database Migrations ✓
 - TASK-004: Fix Frontend-Backend API Integration ✓
+- TASK-006: Implement ContentMind Agent ✓
+- TASK-007: Implement Knowledge Repository ✓
 - TASK-011: Add System Health Monitoring ✓
+- TASK-019: WhatsApp Integration ✓
+- TASK-020: Write Integration Tests for ContentMind Agent ✓
 - QUICK-001: Emergency API Fix ✓
 
 ### Progress Summary
 - Phase 1: 4/5 tasks completed (80%)
-- Phase 2: 1/6 tasks completed (17%) - MVP Core Components
-- Phase 3: 0/3 tasks completed (0%) - Testing Framework
+- Phase 2: 3/6 tasks completed (50%) - MVP Core Components
+- Phase 3: 1/3 tasks completed (33%) - Testing Framework (TASK-020)
 - Phase 4: 0/3 tasks completed (0%) - Integration Testing
-- Phase 5: 0/2 tasks completed (0%) - Additional Features
-- Overall: 5/19 core tasks completed (26%)
+- Phase 5: 1/2 tasks completed (50%) - Additional Features (TASK-019)
+- Overall: 9/20 total tasks completed (45%)
 
 ---
 
