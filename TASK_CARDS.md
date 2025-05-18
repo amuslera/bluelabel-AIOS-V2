@@ -647,6 +647,42 @@ Knowledge Repository stores → Digest Agent summarizes → Email response sent
 
 ---
 
+### TASK-021: Digest Agent Implementation
+**Status**: In Progress: CC 🔄  
+**Owner**: CC  
+**Tags**: #backend #agents #mvp  
+**Order**: 21  
+**Priority**: Critical  
+**Phase**: 2  
+**Estimated Time**: 6 hours  
+**Dependencies**: TASK-007, TASK-019  
+**Branch**: `feat/TASK-021-digest-agent`  
+
+**Description**: Build a new DigestAgent that queries the Knowledge Repository and generates digests using MCP.
+
+**Deliverables**:
+- DigestAgent class using the shared Agent base
+- MCP integration to load the digest prompt and inject summaries
+- API endpoint at `/api/v1/digest/mvp/`
+- JSON response structure with status, digest, summary_count, and timestamp
+
+**Acceptance Criteria**:
+- [ ] DigestAgent queries Knowledge Repository for summaries
+- [ ] Loads and renders prompt using MCP (`digest_summary.yaml`)
+- [ ] Returns structured digest response
+- [ ] API endpoint functional at `/api/v1/digest/mvp/`
+- [ ] Error handling returns appropriate error response
+- [ ] Logging of input data and rendered output
+- [ ] Basic test functions implemented
+
+**Technical Details**:
+- Query Knowledge Repository for `content_type = "summary"`
+- Integrate with MCP for prompt rendering
+- MVP-simple implementation (no email delivery, scheduling, or triggers)
+- JSON response format specified in deliverables
+
+---
+
 ## Quick Start Tasks (Immediate Relief)
 
 ### QUICK-001: Emergency API Fix
@@ -672,12 +708,12 @@ Knowledge Repository stores → Digest Agent summarizes → Email response sent
 ## Task Execution Dashboard
 
 ### Currently Active
-- None (Awaiting next task assignment)
+- TASK-021: Digest Agent Implementation (CC) 🔄
 
 ### Up Next (MVP Core)
 1. TASK-005: Stabilize File Upload System
 2. TASK-008: Implement Email Gateway
-3. TASK-009: Implement Digest Agent
+3. TASK-009: Implement Digest Agent (now replaced by TASK-021)
 4. TASK-010: Complete MVP Flow Integration
 
 ### Completed
@@ -694,11 +730,11 @@ Knowledge Repository stores → Digest Agent summarizes → Email response sent
 
 ### Progress Summary
 - Phase 1: 4/5 tasks completed (80%)
-- Phase 2: 3/6 tasks completed (50%) - MVP Core Components
+- Phase 2: 3/7 tasks completed (43%) - MVP Core Components (TASK-021 in progress)
 - Phase 3: 1/3 tasks completed (33%) - Testing Framework (TASK-020)
 - Phase 4: 0/3 tasks completed (0%) - Integration Testing
 - Phase 5: 1/2 tasks completed (50%) - Additional Features (TASK-019)
-- Overall: 9/20 total tasks completed (45%)
+- Overall: 9/21 total tasks completed (43%)
 
 ---
 
