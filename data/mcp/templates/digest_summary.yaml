@@ -1,0 +1,76 @@
+name: "digest_summary"
+description: "Generate comprehensive digests from multiple content summaries"
+version: "1.0.0"
+created_by: "DigestAgent"
+tags: ["digest", "summary", "aggregation"]
+
+# Define the structure of the prompt
+components:
+  - id: "system_role"
+    template: |
+      You are an expert content analyst and digest creator. Your task is to synthesize multiple 
+      content summaries into a coherent, well-structured digest that highlights the most important 
+      information while maintaining readability and engagement.
+
+  - id: "task_instructions"
+    template: |
+      Create a comprehensive digest from the following {{ count }} summaries:
+      
+      {% for summary in summaries %}
+      --- Summary {{ loop.index }} ---
+      Title: {{ summary.title }}
+      Source: {{ summary.source }}
+      Created: {{ summary.created_at }}
+      {% if summary.tags %}Tags: {{ summary.tags|join(', ') }}{% endif %}
+      
+      Content:
+      {{ summary.content }}
+      
+      {% endfor %}
+      
+      Please format the digest as follows:
+      1. Start with an executive summary (2-3 sentences) capturing the main themes
+      2. Group related content under thematic sections
+      3. For each section, provide:
+         - A clear heading
+         - Key insights and findings
+         - Relevant sources and dates
+      4. End with a brief conclusion or "Looking Ahead" section
+      
+      Guidelines:
+      - Keep the digest concise yet comprehensive
+      - Use clear, professional language
+      - Maintain objectivity
+      - Highlight connections between different pieces of content
+      - Prioritize the most significant information
+
+# Example usage (for testing)
+examples:
+  - name: "Basic digest example"
+    inputs:
+      count: 3
+      summaries:
+        - title: "AI Advances in Healthcare"
+          source: "TechNews Daily"
+          created_at: "2025-05-17T10:00:00Z"
+          content: "Recent developments in AI-powered diagnostics..."
+          tags: ["AI", "healthcare", "technology"]
+        - title: "Market Analysis Q1 2025"
+          source: "Financial Times"
+          created_at: "2025-05-17T14:00:00Z"
+          content: "Quarterly report shows strong growth in tech sector..."
+          tags: ["finance", "markets", "technology"]
+        - title: "Climate Summit Results"
+          source: "Environmental Weekly"
+          created_at: "2025-05-17T16:00:00Z"
+          content: "Global leaders reach new agreement on emissions..."
+          tags: ["climate", "policy", "global"]
+
+# Metadata for the template
+metadata:
+  max_input_length: 50000
+  recommended_model: "gpt-4"
+  supports_streaming: false
+  requires_features:
+    - "long_context"
+    - "summarization"
