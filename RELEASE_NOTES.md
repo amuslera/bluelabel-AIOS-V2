@@ -25,6 +25,7 @@ This MVP release delivers the core functionality of the Bluelabel AIOS system, f
 - ✅ **Agent Documentation**: Usage guides and examples
 - ✅ **Test Documentation**: Validation results and test coverage reports
 - ✅ **Task Cards**: Comprehensive task tracking and progress reporting
+- ✅ **CONTEXT.md**: Shared system knowledge and agent expectations
 
 ## Validation
 
@@ -56,13 +57,15 @@ For detailed validation results, see `docs/mvp-validation-results.md`.
 - Python 3.9+
 - PostgreSQL 13+
 - Redis (optional, for caching)
-- OpenAI API key (or compatible LLM provider)
+- LLM provider API key (OpenAI, Anthropic, or local Ollama)
 
 ### Installation
 See `docs/INSTALLATION.md` for detailed setup instructions.
 
 ### Configuration
 Environment variables and configuration options are documented in `docs/CONFIGURATION.md`.
+
+LLM providers currently supported: OpenAI, Anthropic, and local Ollama. Configured via ModelRouter in core/.
 
 ## Support
 
@@ -73,4 +76,4 @@ For issues, feature requests, or questions:
 
 ---
 
-*Release Date: May 18, 2024* 
+*Release Date: May 18, 2025* 
