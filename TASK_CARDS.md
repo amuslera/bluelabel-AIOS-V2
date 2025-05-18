@@ -719,6 +719,59 @@ Knowledge Repository stores → Digest Agent summarizes → Email response sent
 
 ---
 
+### TASK-030: DigestAgent MVP Test Harness Fixes
+**Status**: ✅ Done  
+**Owner**: GPT-4 (AI Assistant)  
+**Tags**: #backend #testing #agents  
+**Order**: 30  
+**Priority**: High  
+**Phase**: 3  
+**Estimated Time**: 2 hours  
+**Dependencies**: TASK-021, TASK-022  
+**Branch**: `fix/TASK-030-digestagent-test-harness`  
+
+**Description**: Fix and validate the DigestAgentMVP test harness to ensure the agent is fully testable and produces valid output.
+
+**Acceptance Criteria**:
+- [x] Test harness runs without errors
+- [x] AgentInput fields are correct
+- [x] Mocks return objects with expected attributes
+- [x] Digest output is valid JSON
+- [x] Logging and capabilities output as expected
+
+**Technical Details**:
+- Added required `source` field to AgentInput
+- Updated mock for knowledge_repo.list_content to return objects (MagicMock) with required attributes
+- Ensured agent is initialized with all dependencies
+- Fixed async/sync initialization call
+
+**Completion Notes**:
+This task documents the fixes and validation of the DigestAgentMVP test harness, ensuring the agent is fully testable and produces valid output.
+
+- **AgentInput Construction:**
+  - Added the required `source` field to the `AgentInput` instantiation in the test script.
+- **Mock Structure:**
+  - Updated the mock for `knowledge_repo.list_content` to return objects (using `MagicMock`) with the expected attributes (`id`, `title`, `source`, `text_content`, `summary`, `created_at`, `tags`), instead of plain dictionaries.
+- **Initialization:**
+  - Ensured the agent is initialized with all required dependencies (mocked knowledge repo, model router, and prompt manager).
+- **Async/Sync Correction:**
+  - Fixed the test to call `agent.initialize()` without `await`, as the method is synchronous.
+
+**Confirmation:**
+- The test script now runs successfully, and the agent returns a valid JSON output with the expected fields:
+    - `status`
+    - `digest`
+    - `summary_count`
+    - `timestamp`
+- The script prints the digest, summary count, timestamp, and agent capabilities, confirming the agent logic, summary aggregation, and formatting all work as intended.
+
+No further action required for fallback rendering or integration tests at this time. The core test harness is complete and validated. Future work may include integration tests with a real database or agent chaining.
+
+**Status:**
+✅ Complete
+
+---
+
 ## Quick Start Tasks (Immediate Relief)
 
 ### QUICK-001: Emergency API Fix
@@ -790,3 +843,120 @@ Knowledge Repository stores → Digest Agent summarizes → Email response sent
 - Follow order for sequential execution
 - Check dependencies before starting tasks
 - Update progress summary regularly
+
+---
+
+
+### TASK-025: MVP Docs & Architecture Summary
+**Status**: pending  
+**Tags**: #documentation #readme #release  
+**Order**: 25  
+**Priority**: High  
+**Phase**: 5  
+**Estimated Time**: 4 hours  
+**Dependencies**: TASK-021  
+
+**Description**: Create MVP launch documentation, system diagrams, and onboarding notes.
+
+**Acceptance Criteria**:
+- [ ] MVP README created
+- [ ] Architecture diagram drafted
+- [ ] Summary of agents and API routes
+- [ ] Developer onboarding section
+- [ ] Released as part of /docs or repo root
+
+---
+
+### TASK-026: MCP Prompt Registry CLI
+**Status**: ✅ Done  
+**Tags**: #backend #cli #mcp  
+**Order**: 26  
+**Priority**: Medium  
+**Phase**: 5  
+**Estimated Time**: 5 hours  
+**Dependencies**: TASK-006, TASK-019  
+**Agent**: WA
+
+**Description**: CLI tool to list all MCP prompt templates, required fields, and metadata.
+
+**Deliverables**:
+- `scripts/list_prompts.py` with:
+  - `--summary`, `--verbose`, `--json` modes
+  - Jinja2 field extraction
+  - YAML structure parsing
+- Graceful error handling
+- Test cases:
+  - Valid templates
+  - Invalid YAML
+  - Field extraction from Jinja2
+  - Metadata parsing
+
+**Completion Notes**:
+- CLI tested with current `/prompts/`
+- JSON output suitable for API/UI extension
+- Fault-tolerant and extensible
+- Ready for integration with other tools
+- Added comprehensive test suite
+- Supports both summary and detailed views
+- Handles invalid YAML gracefully
+- Extracts fields from both explicit declarations and Jinja2 templates
+
+---
+
+### TASK-027: Workflow Engine MVP
+**Status**: pending  
+**Tags**: #backend #workflow #orchestration  
+**Order**: 27  
+**Priority**: High  
+**Phase**: 6  
+**Estimated Time**: 10 hours  
+**Dependencies**: TASK-010  
+
+**Description**: Build a basic agent chaining engine to allow conditional multi-agent workflows.
+
+**Acceptance Criteria**:
+- [ ] Define minimal workflow schema
+- [ ] Chain ContentMind → Digest
+- [ ] Support input mapping between agents
+- [ ] Implement simple orchestrator class
+- [ ] Add tests and at least one example workflow
+
+---
+
+### TASK-028: LLM Router Layer
+**Status**: pending  
+**Tags**: #backend #ai #llm  
+**Order**: 28  
+**Priority**: Medium  
+**Phase**: 6  
+**Estimated Time**: 6 hours  
+**Dependencies**: TASK-006  
+
+**Description**: Create router to choose among LLM providers (OpenAI, Anthropic, Ollama, etc).
+
+**Acceptance Criteria**:
+- [ ] Select LLM provider based on cost/priority
+- [ ] Include fallback logic
+- [ ] Log all decisions and failures
+- [ ] Unit tests for routing logic
+- [ ] Configurable routing policy
+
+---
+
+### TASK-029: ChromaDB Integration
+**Status**: pending  
+**Tags**: #database #semanticsearch #vector  
+**Order**: 29  
+**Priority**: Medium  
+**Phase**: 6  
+**Estimated Time**: 8 hours  
+**Dependencies**: TASK-007  
+
+**Description**: Add semantic search layer to Knowledge Repository using ChromaDB.
+
+**Acceptance Criteria**:
+- [ ] Store vector embeddings from content
+- [ ] Enable semantic query API
+- [ ] Add similarity scoring
+- [ ] Fallback to keyword search if unavailable
+- [ ] Covered by tests and examples
