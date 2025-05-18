@@ -36,13 +36,18 @@ class DigestAgentMVP(Agent):
             prompt_manager: MCP prompt manager
             metadata: Optional metadata
         """
-        super().__init__(agent_id, metadata)
+        super().__init__(
+            name="Digest Agent MVP",
+            description="Generates digests from Knowledge Repository summaries",
+            agent_id=agent_id
+        )
         self.knowledge_repo = knowledge_repo
         self.model_router = model_router
         self.prompt_manager = prompt_manager
         self._initialized = False
+        self.metadata = metadata or {}
     
-    async def initialize(self) -> bool:
+    def initialize(self) -> None:
         """Initialize the agent and its dependencies."""
         try:
             # Initialize dependencies if needed
@@ -50,18 +55,21 @@ class DigestAgentMVP(Agent):
                 self.knowledge_repo = PostgresKnowledgeRepository()
             
             if not self.model_router:
-                self.model_router = await ModelRouter.create()
+                # Note: In production, this should be injected as a dependency
+                logger.warning("No model router provided, using default (may fail without proper config)")
+                # self.model_router = ModelRouter()
             
             if not self.prompt_manager:
-                self.prompt_manager = MCPManager()
+                # Note: In production, this should be injected as a dependency
+                logger.warning("No prompt manager provided, using default (may fail without proper config)")
+                # self.prompt_manager = MCPManager()
             
             self._initialized = True
             logger.info(f"DigestAgent {self.agent_id} initialized successfully")
-            return True
             
         except Exception as e:
             logger.error(f"Error initializing DigestAgent: {e}")
-            return False
+            raise
     
     async def process(self, input_data: AgentInput) -> AgentOutput:
         """Process the request to generate a digest.
@@ -73,7 +81,7 @@ class DigestAgentMVP(Agent):
             Agent output with the generated digest
         """
         if not self._initialized:
-            await self.initialize()
+            self.initialize()
         
         try:
             logger.info(f"Processing digest request for task: {input_data.task_id}")
@@ -241,8 +249,7 @@ class DigestAgentMVP(Agent):
             "output_format": "json"
         }
     
-    async def shutdown(self) -> bool:
+    async def shutdown(self) -> None:
         """Shutdown the agent."""
         self._initialized = False
         logger.info(f"DigestAgent {self.agent_id} shutdown")
-        return True
