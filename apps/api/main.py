@@ -12,6 +12,7 @@ from core.config import config
 # Import middleware
 from apps.api.middleware.error_handler import register_error_handlers
 from apps.api.middleware.request_id import request_id_middleware
+from apps.api.middleware.compression import CompressionMiddleware
 from core.config_validator import validate_config_on_startup
 
 # Import routers
@@ -44,6 +45,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Add response compression
+app.add_middleware(CompressionMiddleware, minimum_size=1024)
 
 # Add request ID middleware
 @app.middleware("http")

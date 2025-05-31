@@ -52,6 +52,14 @@ class LoggingConfig(BaseModel):
     file: str = os.getenv("LOG_FILE", "logs/bluelabel_aios.log")
 
 
+class CacheConfig(BaseModel):
+    """Cache configuration"""
+    enabled: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    default_ttl: int = int(os.getenv("CACHE_TTL", 300))
+    key_prefix: str = os.getenv("CACHE_KEY_PREFIX", "aios")
+
+
 class Settings(BaseModel):
     """Main application configuration with backward compatibility"""
     debug: bool = os.getenv("API_DEBUG", "false").lower() == "true"
@@ -62,6 +70,7 @@ class Settings(BaseModel):
     email: EmailConfig = EmailConfig()
     whatsapp: WhatsAppConfig = WhatsAppConfig()
     logging: LoggingConfig = LoggingConfig()
+    cache: CacheConfig = CacheConfig()
     
     # Storage settings
     local_storage_path: str = os.getenv("LOCAL_STORAGE_PATH", "./data/storage")

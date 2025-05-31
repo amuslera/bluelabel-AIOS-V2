@@ -80,6 +80,10 @@ prometheus-client>=0.16.0
 opentelemetry-api>=1.15.0
 opentelemetry-sdk>=1.15.0
 
+# Performance optimization
+brotli>=1.0.9
+redis-py-cluster>=2.1.0
+
 # Logging
 python-json-logger>=2.0.7
 

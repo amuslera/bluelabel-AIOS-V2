@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import and_, or_, func, desc, asc, text
 from typing import List, Optional, Dict, Any
 import math
@@ -21,6 +21,9 @@ from shared.models.marketplace import (
     AgentModel, AgentInstallationModel, AgentReviewModel, 
     AgentCategoryModel, AgentTagModel, AgentAnalyticsModel
 )
+from core.cache import cache, cache_manager, CacheInvalidator
+from core.database_optimization import profile_db_operation, QueryOptimizer
+from shared.utils.pagination import Paginator, PaginationParams
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
@@ -87,13 +90,15 @@ def apply_sorting(query, sort: SortOption) -> Any:
 
 # Marketplace overview endpoints
 @router.get("/stats", response_model=MarketplaceStats)
+@cache(ttl=600)  # Cache for 10 minutes
+@profile_db_operation
 async def get_marketplace_stats(db: Session = Depends(get_db)):
     """Get marketplace overview statistics"""
     
-    # Basic stats
-    total_agents = db.query(AgentModel).filter(AgentModel.is_active == True).count()
+    # Basic stats - optimized queries
+    total_agents = db.query(func.count(AgentModel.id)).filter(AgentModel.is_active == True).scalar()
     total_installs = db.query(func.sum(AgentModel.install_count)).scalar() or 0
-    total_categories = db.query(AgentCategoryModel).filter(AgentCategoryModel.is_active == True).count()
+    total_categories = db.query(func.count(AgentCategoryModel.id)).filter(AgentCategoryModel.is_active == True).scalar()
     
     # Featured agents
     featured_agents = db.query(AgentModel).filter(
@@ -128,6 +133,7 @@ async def get_marketplace_stats(db: Session = Depends(get_db)):
 
 # Agent listing endpoints
 @router.get("/agents", response_model=AgentListResponse)
+@profile_db_operation
 async def list_agents(
     category: Optional[str] = None,
     tags: Optional[str] = None,  # Comma-separated
@@ -140,8 +146,19 @@ async def list_agents(
 ):
     """List marketplace agents with filtering and pagination"""
     
-    # Base query
-    query = db.query(AgentModel).filter(AgentModel.is_active == True)
+    # Generate cache key for common queries
+    cache_key = None
+    if not search and not tags and page == 1 and limit == 20:
+        cache_key = f"agents:list:{category or 'all'}:{sort.value}"
+        cached = cache_manager.get(cache_key)
+        if cached:
+            return AgentListResponse(**cached)
+    
+    # Base query with eager loading
+    query = db.query(AgentModel).options(
+        selectinload(AgentModel.installations),
+        selectinload(AgentModel.reviews)
+    ).filter(AgentModel.is_active == True)
     
     # Apply search
     if search:
@@ -162,23 +179,28 @@ async def list_agents(
     # Apply sorting
     query = apply_sorting(query, sort)
     
-    # Get total count
-    total = query.count()
-    
-    # Apply pagination
-    offset = (page - 1) * limit
-    agents = query.offset(offset).limit(limit).all()
-    
-    # Calculate pages
-    pages = math.ceil(total / limit)
-    
-    return AgentListResponse(
-        agents=agents,
-        total=total,
+    # Use optimized pagination
+    paginator = Paginator()
+    result = paginator.paginate(
+        query=query,
         page=page,
-        pages=pages,
-        limit=limit
+        per_page=limit,
+        max_per_page=100
     )
+    
+    response = AgentListResponse(
+        agents=result["items"],
+        total=result["total"],
+        page=result["page"],
+        pages=result["pages"],
+        limit=result["per_page"]
+    )
+    
+    # Cache common queries
+    if cache_key:
+        cache_manager.set(cache_key, response.dict(), ttl=300)
+    
+    return response
 
 
 @router.post("/agents/search", response_model=AgentListResponse)
