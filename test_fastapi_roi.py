@@ -46,6 +46,8 @@ async def roi_health():
 @app.post("/roi/upload")
 async def upload_audio(audio_file: UploadFile = File(...)):
     """Test audio upload endpoint"""
+    print(f"🚀 UPLOAD STARTED: {audio_file.filename}")
+    logger.info(f"=== UPLOAD STARTED: {audio_file.filename} ===")
     try:
         # Read file content
         content = await audio_file.read()
@@ -61,7 +63,11 @@ async def upload_audio(audio_file: UploadFile = File(...)):
             )
             
             # Start processing the workflow asynchronously
-            asyncio.create_task(process_workflow_async(str(workflow.id)))
+            print(f"🚀 STARTING BACKGROUND TASK FOR: {workflow.id}")
+            logger.info(f"Starting background processing for workflow {workflow.id}")
+            task = asyncio.create_task(process_workflow_async(str(workflow.id)))
+            print(f"🚀 BACKGROUND TASK CREATED: {task}")
+            logger.info(f"Background task created: {task}")
             
             return {
                 "id": str(workflow.id),
@@ -77,14 +83,32 @@ async def upload_audio(audio_file: UploadFile = File(...)):
 
 async def process_workflow_async(workflow_id: str):
     """Process workflow asynchronously in background"""
+    print(f"🔥 BACKGROUND TASK EXECUTING FOR: {workflow_id}")
+    logger.info(f"=== STARTING BACKGROUND PROCESSING FOR {workflow_id} ===")
     try:
+        # Create a NEW database session for the background task
         db = SessionLocal()
         try:
-            await workflow_service.process_workflow(db, workflow_id)
+            logger.info(f"Created new DB session for workflow {workflow_id}")
+            logger.info(f"Starting workflow processing...")
+            result = await workflow_service.process_workflow(db, workflow_id)
+            logger.info(f"=== WORKFLOW PROCESSING COMPLETED FOR {workflow_id} ===")
+            logger.info(f"Result: {result}")
+        except Exception as db_error:
+            logger.error(f"Database error in workflow {workflow_id}: {db_error}")
+            import traceback
+            logger.error(f"DB error traceback: {traceback.format_exc()}")
         finally:
-            db.close()
+            try:
+                db.close()
+                logger.info(f"Database session closed for workflow {workflow_id}")
+            except Exception as close_error:
+                logger.error(f"Error closing DB session: {close_error}")
     except Exception as e:
-        logger.error(f"Background workflow processing failed for {workflow_id}: {e}")
+        logger.error(f"=== BACKGROUND PROCESSING FAILED FOR {workflow_id} ===")
+        logger.error(f"Error: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
 
 @app.get("/roi/status/{workflow_id}")
 async def get_workflow_status(workflow_id: str):
@@ -102,7 +126,9 @@ async def get_workflow_status(workflow_id: str):
             "created_at": workflow.created_at.isoformat(),
             "completed_at": workflow.completed_at.isoformat() if workflow.completed_at else None,
             "transcription": workflow.transcription,
-            "transcription_english": getattr(workflow, 'transcription_english', workflow.transcription),
+            "transcription_english": getattr(workflow, 'transcription_english', None) or 
+                                        (workflow.extracted_data and workflow.extracted_data.get('transcription_english')) or 
+                                        workflow.transcription,
             "extracted_data": workflow.extracted_data,
             "language_detected": workflow.language_detected,
             "error_message": workflow.error_message
@@ -125,7 +151,9 @@ async def list_workflows():
                     "filename": w.audio_file_name,
                     "created_at": w.created_at.isoformat(),
                     "transcription": w.transcription,
-                    "transcription_english": getattr(w, 'transcription_english', w.transcription),
+                    "transcription_english": getattr(w, 'transcription_english', None) or 
+                                            (w.extracted_data and w.extracted_data.get('transcription_english')) or 
+                                            w.transcription,
                     "extracted_data": w.extracted_data,
                     "completed_at": w.completed_at.isoformat() if w.completed_at else None
                 }

@@ -16,7 +16,7 @@ from shared.models.roi_workflow import ROIWorkflow, WorkflowStep, WorkflowStatus
 from shared.schemas.roi_workflow import WorkflowStatusUpdate
 from agents.transcription_agent import TranscriptionAgent
 from agents.extraction_agent import ExtractionAgent
-# from agents.translation_agent import TranslationAgent  # TODO: Enable when ready
+from agents.translation_agent import TranslationAgent
 from core.config import config
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class ROIWorkflowService:
     def __init__(self):
         self.transcription_agent = TranscriptionAgent()
         self.extraction_agent = ExtractionAgent()
-        # self.translation_agent = TranslationAgent()  # Disabled for now
+        self.translation_agent = TranslationAgent()
         
         # Storage configuration
         self.storage_path = Path(config.local_storage_path) / "roi_workflows"
@@ -100,6 +100,11 @@ class ROIWorkflowService:
                 ),
                 WorkflowStep(
                     workflow_id=workflow_id,
+                    step_name="translation",
+                    status=StepStatus.PENDING.value
+                ),
+                WorkflowStep(
+                    workflow_id=workflow_id,
                     step_name="extraction",
                     status=StepStatus.PENDING.value
                 )
@@ -151,7 +156,13 @@ class ROIWorkflowService:
                 await self._fail_workflow(db, workflow, transcription_result["error"])
                 return transcription_result
             
-            # Step 2: Data Extraction
+            # Step 2: Translation (if needed)
+            translation_result = await self._process_translation_step(db, workflow)
+            if not translation_result["success"]:
+                await self._fail_workflow(db, workflow, translation_result["error"])
+                return translation_result
+            
+            # Step 3: Data Extraction
             extraction_result = await self._process_extraction_step(db, workflow)
             if not extraction_result["success"]:
                 await self._fail_workflow(db, workflow, extraction_result["error"])
@@ -206,9 +217,7 @@ class ROIWorkflowService:
                 workflow.language_detected = result["language"]
                 workflow.transcription_confidence = result["confidence"]
                 
-                # Store English version (for now, same as original)
-                # TODO: Add proper translation when translation agent is ready
-                # workflow.transcription_english = result["transcription"]
+                # English translation will be set in translation step if needed
                 
                 # Complete step
                 step.complete({
@@ -240,6 +249,85 @@ class ROIWorkflowService:
             logger.error(f"Transcription step failed: {e}")
             return {"success": False, "error": str(e)}
     
+    async def _process_translation_step(self, db: Session, workflow: ROIWorkflow) -> Dict[str, Any]:
+        """Process the translation step (if needed)"""
+        step = next((s for s in workflow.steps if s.step_name == "translation"), None)
+        if not step:
+            return {"success": False, "error": "Translation step not found"}
+        
+        try:
+            # Update workflow status
+            workflow.status = WorkflowStatus.TRANSLATING.value
+            step.start()
+            db.commit()
+            
+            await self._send_status_update(workflow, "Translating to English...")
+            
+            # Check if translation is needed
+            if workflow.language_detected and workflow.language_detected.lower() in ['spanish', 'es']:
+                # Process translation
+                result = await self.translation_agent.process({
+                    "text": workflow.transcription,
+                    "source_language": "es",
+                    "target_language": "en"
+                })
+                
+                if result["success"]:
+                    # Store English translation in extracted_data for now
+                    if not workflow.extracted_data:
+                        workflow.extracted_data = {}
+                    workflow.extracted_data["transcription_english"] = result["translation"]
+                    
+                    # Complete step
+                    step.complete({
+                        "translation_length": len(result["translation"]),
+                        "source_language": "es",
+                        "target_language": "en",
+                        "translated": True
+                    })
+                    
+                    db.commit()
+                    
+                    await self._send_status_update(workflow, "Translation to English completed")
+                    
+                    logger.info(
+                        f"Translation completed for workflow {workflow.id}: "
+                        f"{len(result['translation'])} chars"
+                    )
+                    
+                    return {"success": True}
+                else:
+                    step.fail(result["error"])
+                    db.commit()
+                    return {"success": False, "error": result["error"]}
+            else:
+                # No translation needed - store original in extracted_data
+                if not workflow.extracted_data:
+                    workflow.extracted_data = {}
+                workflow.extracted_data["transcription_english"] = workflow.transcription
+                
+                # Complete step
+                step.complete({
+                    "translation_length": len(workflow.transcription),
+                    "source_language": workflow.language_detected or "en",
+                    "target_language": "en",
+                    "translated": False
+                })
+                
+                db.commit()
+                
+                await self._send_status_update(workflow, "No translation needed - content already in English")
+                
+                logger.info(f"No translation needed for workflow {workflow.id}")
+                
+                return {"success": True}
+                
+        except Exception as e:
+            step.fail(str(e))
+            db.commit()
+            logger.error(f"Translation step failed: {e}")
+            return {"success": False, "error": str(e)}
+    
     async def _process_extraction_step(self, db: Session, workflow: ROIWorkflow) -> Dict[str, Any]:
         """Process the data extraction step"""
         step = next((s for s in workflow.steps if s.step_name == "extraction"), None)
@@ -260,10 +348,15 @@ class ROIWorkflowService:
                 "language": workflow.language_detected,
                 "context": f"Audio file: {workflow.audio_file_name}"
             })
-            
             if result["success"]:
-                # Update workflow with results
-                workflow.extracted_data = result["extracted_data"]
+                # Update workflow with results - preserve existing data like translation
+                if workflow.extracted_data:
+                    # Merge with existing data (like transcription_english from translation step)
+                    merged_data = workflow.extracted_data.copy()
+                    merged_data.update(result["extracted_data"])
+                    workflow.extracted_data = merged_data  # Reassign the whole object
+                else:
+                    workflow.extracted_data = result["extracted_data"]
                 
                 # Complete step
                 step.complete({
