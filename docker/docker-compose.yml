@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: aios-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-aios}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-aios_dev_password}
+      POSTGRES_DB: ${DATABASE_NAME:-aios_v2}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-aios}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and event bus
+  redis:
+    image: redis:7-alpine
+    container_name: aios-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Service
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: aios-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER:-aios}:${DATABASE_PASSWORD:-aios_dev_password}@postgres:5432/${DATABASE_NAME:-aios_v2}
+      REDIS_URL: redis://redis:6379
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+    volumes:
+      - ../logs:/app/logs
+      - ../data:/app/data
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend App
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+    container_name: aios-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); });"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Migration runner (one-time container)
+  migrate:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: aios-migrate
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER:-aios}:${DATABASE_PASSWORD:-aios_dev_password}@postgres:5432/${DATABASE_NAME:-aios_v2}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - migration
+
+volumes:
+  postgres_data:
+    name: aios_postgres_data
+  redis_data:
+    name: aios_redis_data
+
+networks:
+  default:
+    name: aios_network

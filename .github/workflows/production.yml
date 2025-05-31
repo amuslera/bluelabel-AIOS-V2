@@ -1,0 +1,251 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate-deployment:
+    name: Validate Deployment
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.version }}
+    
+    - name: Validate version tag
+      run: |
+        if ! git rev-parse "${{ github.event.inputs.version }}" >/dev/null 2>&1; then
+          echo "Error: Version tag ${{ github.event.inputs.version }} does not exist"
+          exit 1
+        fi
+    
+    - name: Check staging deployment
+      run: |
+        # Verify staging is healthy before production deployment
+        curl -f https://staging.aios.example.com/health || exit 1
+
+  build-production-images:
+    name: Build Production Images
+    needs: validate-deployment
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    outputs:
+      api-image: ${{ steps.api-image.outputs.image }}
+      web-image: ${{ steps.web-image.outputs.image }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.version }}
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build and push API image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/api.Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ github.event.inputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILD_VERSION=${{ github.event.inputs.version }}
+          BUILD_COMMIT=${{ github.sha }}
+    
+    - name: Build and push Web image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/web.Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:${{ github.event.inputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILD_VERSION=${{ github.event.inputs.version }}
+          BUILD_COMMIT=${{ github.sha }}
+    
+    - name: Set output images
+      id: api-image
+      run: echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+    
+    - name: Set web image output
+      id: web-image
+      run: echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+
+  deploy-production:
+    name: Deploy to Production
+    needs: build-production-images
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.version }}
+    
+    - name: Create deployment backup
+      env:
+        PROD_HOST: ${{ secrets.PROD_HOST }}
+        PROD_USER: ${{ secrets.PROD_USER }}
+        PROD_KEY: ${{ secrets.PROD_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$PROD_KEY" > ~/.ssh/prod_key
+        chmod 600 ~/.ssh/prod_key
+        
+        ssh -i ~/.ssh/prod_key -o StrictHostKeyChecking=no $PROD_USER@$PROD_HOST << EOF
+          cd /opt/aios
+          ./scripts/backup.sh pre-deployment-${{ github.event.inputs.version }}
+        EOF
+    
+    - name: Deploy to production (Blue-Green)
+      env:
+        PROD_HOST: ${{ secrets.PROD_HOST }}
+        PROD_USER: ${{ secrets.PROD_USER }}
+        PROD_KEY: ${{ secrets.PROD_SSH_KEY }}
+        API_IMAGE: ${{ needs.build-production-images.outputs.api-image }}
+        WEB_IMAGE: ${{ needs.build-production-images.outputs.web-image }}
+        VERSION: ${{ github.event.inputs.version }}
+      run: |
+        # Copy deployment files
+        scp -i ~/.ssh/prod_key -o StrictHostKeyChecking=no \
+          scripts/deployment/deploy.sh \
+          scripts/deployment/rollback.sh \
+          docker/docker-compose.production.yml \
+          $PROD_USER@$PROD_HOST:/opt/aios/
+        
+        # Run blue-green deployment
+        ssh -i ~/.ssh/prod_key -o StrictHostKeyChecking=no $PROD_USER@$PROD_HOST << EOF
+          cd /opt/aios
+          export API_IMAGE=$API_IMAGE
+          export WEB_IMAGE=$WEB_IMAGE
+          export VERSION=$VERSION
+          ./deploy.sh production --blue-green
+        EOF
+    
+    - name: Run production health checks
+      run: |
+        sleep 60  # Wait for services to fully start
+        
+        # Check API health
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://api.aios.example.com/health)
+        if [ $response -ne 200 ]; then
+          echo "API health check failed with status $response"
+          exit 1
+        fi
+        
+        # Check Web health
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://aios.example.com)
+        if [ $response -ne 200 ]; then
+          echo "Web health check failed with status $response"
+          exit 1
+        fi
+        
+        # Check critical endpoints
+        curl -f https://api.aios.example.com/api/v1/marketplace/stats || exit 1
+    
+    - name: Switch traffic to new deployment
+      if: success()
+      env:
+        PROD_HOST: ${{ secrets.PROD_HOST }}
+        PROD_USER: ${{ secrets.PROD_USER }}
+        PROD_KEY: ${{ secrets.PROD_SSH_KEY }}
+      run: |
+        ssh -i ~/.ssh/prod_key -o StrictHostKeyChecking=no $PROD_USER@$PROD_HOST << EOF
+          cd /opt/aios
+          ./deploy.sh production --switch-traffic
+        EOF
+    
+    - name: Notify deployment success
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: '🚀 Production deployment of ${{ github.event.inputs.version }} completed successfully!'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+    
+    - name: Rollback on failure
+      if: failure()
+      env:
+        PROD_HOST: ${{ secrets.PROD_HOST }}
+        PROD_USER: ${{ secrets.PROD_USER }}
+        PROD_KEY: ${{ secrets.PROD_SSH_KEY }}
+      run: |
+        ssh -i ~/.ssh/prod_key -o StrictHostKeyChecking=no $PROD_USER@$PROD_HOST << EOF
+          cd /opt/aios
+          ./rollback.sh --emergency
+        EOF
+    
+    - name: Notify deployment failure
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: '❌ Production deployment of ${{ github.event.inputs.version }} failed and was rolled back!'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  post-deployment:
+    name: Post-Deployment Tasks
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create release notes
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.version }}
+        name: Release ${{ github.event.inputs.version }}
+        body: |
+          ## 🚀 Production Deployment
+          
+          Version ${{ github.event.inputs.version }} has been successfully deployed to production.
+          
+          ### Deployment Details
+          - API Image: `${{ needs.build-production-images.outputs.api-image }}`
+          - Web Image: `${{ needs.build-production-images.outputs.web-image }}`
+          - Deployed at: ${{ github.event.repository.updated_at }}
+          
+          ### What's New
+          See [CHANGELOG.md](./CHANGELOG.md) for details.
+    
+    - name: Update deployment tracking
+      env:
+        PROD_HOST: ${{ secrets.PROD_HOST }}
+        PROD_USER: ${{ secrets.PROD_USER }}
+        PROD_KEY: ${{ secrets.PROD_SSH_KEY }}
+      run: |
+        ssh -i ~/.ssh/prod_key -o StrictHostKeyChecking=no $PROD_USER@$PROD_HOST << EOF
+          cd /opt/aios
+          echo "${{ github.event.inputs.version }}" > CURRENT_VERSION
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > LAST_DEPLOYMENT
+        EOF

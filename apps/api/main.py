@@ -15,7 +15,7 @@ from apps.api.middleware.request_id import request_id_middleware
 from core.config_validator import validate_config_on_startup
 
 # Import routers
-from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication, workflows, files_simple, files_process, status, health, setup, digest, marketplace
+from apps.api.routers import gateway, agents, knowledge, events, gmail_oauth, gmail_proxy, gmail_hybrid, gmail_complete, email, communication, workflows, files_simple, files_process, status, health, setup, digest, marketplace, metrics
 
 # Load environment variables
 load_dotenv()
@@ -136,6 +136,7 @@ app.include_router(communication.router, prefix="/api/v1/communication", tags=["
 app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["workflows"])
 app.include_router(digest.router)  # Digest at /api/v1/digest
 app.include_router(marketplace.router, prefix="/api/v1", tags=["marketplace"])  # Marketplace at /api/v1/marketplace
+app.include_router(metrics.router, tags=["metrics"])  # Metrics at /metrics
 app.include_router(setup.router, tags=["setup"])
 
 # Register agent startup events
