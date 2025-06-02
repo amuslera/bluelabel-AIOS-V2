@@ -1,0 +1,118 @@
+{
+  "routes": [
+    { "path": "/", "label": "Dashboard", "icon": "home", "category": "main" },
+    { "path": "/agents", "label": "Agents", "icon": "users", "category": "main" },
+    { "path": "/agents/contentmind", "label": "ContentMind", "icon": "brain", "category": "agents", "parent": "/agents" },
+    { "path": "/agents/digest", "label": "Digest Agent", "icon": "file-text", "category": "agents", "parent": "/agents" },
+    { "path": "/agents/gateway", "label": "Gateway", "icon": "mail", "category": "agents", "parent": "/agents" },
+    { "path": "/knowledge", "label": "Knowledge", "icon": "book", "category": "main" },
+    { "path": "/roi-workflow", "label": "ROI Workflow", "icon": "mic", "category": "main" },
+    { "path": "/inbox", "label": "Inbox", "icon": "inbox", "category": "main" },
+    { "path": "/marketplace", "label": "Marketplace", "icon": "store", "category": "main" },
+    { "path": "/terminal", "label": "Terminal", "icon": "terminal", "category": "main" },
+    { "path": "/settings", "label": "Settings", "icon": "settings", "category": "system" }
+  ],
+  
+  "commands": [
+    { "id": "nav-dashboard", "label": "Go to Dashboard", "type": "navigation", "path": "/", "keywords": ["home", "dash", "main"] },
+    { "id": "nav-agents", "label": "Go to Agents", "type": "navigation", "path": "/agents", "keywords": ["agent", "ai", "bots"] },
+    { "id": "nav-contentmind", "label": "Open ContentMind", "type": "navigation", "path": "/agents/contentmind", "keywords": ["content", "mind", "llm"] },
+    { "id": "nav-roi", "label": "ROI Workflow", "type": "navigation", "path": "/roi-workflow", "keywords": ["roi", "voice", "workflow", "audio"] },
+    { "id": "nav-knowledge", "label": "Knowledge Repository", "type": "navigation", "path": "/knowledge", "keywords": ["knowledge", "docs", "repository"] },
+    { "id": "nav-inbox", "label": "View Inbox", "type": "navigation", "path": "/inbox", "keywords": ["inbox", "messages", "mail"] },
+    { "id": "nav-marketplace", "label": "Agent Marketplace", "type": "navigation", "path": "/marketplace", "keywords": ["marketplace", "store", "agents"] },
+    { "id": "nav-terminal", "label": "Open Terminal", "type": "navigation", "path": "/terminal", "keywords": ["terminal", "console", "cli"] },
+    { "id": "action-run-agent", "label": "Run Agent", "type": "action", "keywords": ["run", "execute", "start"] },
+    { "id": "action-new-workflow", "label": "New ROI Workflow", "type": "action", "keywords": ["new", "create", "workflow"] },
+    { "id": "action-toggle-sidebar", "label": "Toggle Sidebar", "type": "action", "keywords": ["sidebar", "toggle", "collapse"] },
+    { "id": "action-theme-toggle", "label": "Toggle Theme", "type": "action", "keywords": ["theme", "dark", "light"] }
+  ],
+  
+  "searchQueries": [
+    { "query": "dash", "expected": ["Go to Dashboard"], "type": "partial_match" },
+    { "query": "agent", "expected": ["Go to Agents", "Run Agent", "Agent Marketplace"], "type": "fuzzy_match" },
+    { "query": "roi", "expected": ["ROI Workflow", "New ROI Workflow"], "type": "exact_match" },
+    { "query": "cnt", "expected": ["Open ContentMind"], "type": "abbreviation" },
+    { "query": "workflow", "expected": ["ROI Workflow", "New ROI Workflow"], "type": "keyword_match" },
+    { "query": "knowledge", "expected": ["Knowledge Repository"], "type": "exact_match" },
+    { "query": "terminal", "expected": ["Open Terminal"], "type": "exact_match" },
+    { "query": "invalid_query_xyz", "expected": [], "type": "no_results" },
+    { "query": "", "expected": [], "type": "empty_query" }
+  ],
+  
+  "breadcrumbTests": [
+    { "path": "/", "expected": [{ "label": "Dashboard", "path": "/" }] },
+    { "path": "/agents", "expected": [{ "label": "Dashboard", "path": "/" }, { "label": "Agents", "path": "/agents" }] },
+    { "path": "/agents/contentmind", "expected": [
+      { "label": "Dashboard", "path": "/" },
+      { "label": "Agents", "path": "/agents" },
+      { "label": "ContentMind", "path": "/agents/contentmind" }
+    ]},
+    { "path": "/roi-workflow", "expected": [
+      { "label": "Dashboard", "path": "/" },
+      { "label": "ROI Workflow", "path": "/roi-workflow" }
+    ]}
+  ],
+
+  "responsiveBreakpoints": [
+    { "name": "mobile", "width": 375, "height": 667 },
+    { "name": "mobile-large", "width": 414, "height": 896 },
+    { "name": "tablet", "width": 768, "height": 1024 },
+    { "name": "tablet-landscape", "width": 1024, "height": 768 },
+    { "name": "desktop", "width": 1440, "height": 900 },
+    { "name": "desktop-large", "width": 1920, "height": 1080 },
+    { "name": "ultrawide", "width": 2560, "height": 1440 }
+  ],
+
+  "accessibility": {
+    "keyboardShortcuts": [
+      { "key": "Ctrl+K", "action": "Open Command Palette", "os": "windows" },
+      { "key": "Cmd+K", "action": "Open Command Palette", "os": "mac" },
+      { "key": "Escape", "action": "Close Command Palette" },
+      { "key": "ArrowDown", "action": "Next Command" },
+      { "key": "ArrowUp", "action": "Previous Command" },
+      { "key": "Enter", "action": "Execute Command" },
+      { "key": "Tab", "action": "Next Focusable Element" },
+      { "key": "Shift+Tab", "action": "Previous Focusable Element" }
+    ],
+    "ariaLabels": {
+      "sidebar": "Main navigation sidebar",
+      "commandPalette": "Command palette",
+      "searchInput": "Search commands",
+      "breadcrumbs": "Breadcrumb navigation",
+      "navigationMenu": "Main navigation menu",
+      "sidebarToggle": "Toggle sidebar visibility"
+    }
+  },
+
+  "performance": {
+    "thresholds": {
+      "sidebarRender": 100,
+      "commandPaletteOpen": 50,
+      "searchResponse": 200,
+      "navigationTransition": 300,
+      "animationDuration": 250
+    },
+    "metrics": [
+      "firstContentfulPaint",
+      "largestContentfulPaint",
+      "cumulativeLayoutShift",
+      "timeToInteractive"
+    ]
+  },
+
+  "animations": {
+    "sidebar": {
+      "expand": { "duration": 200, "easing": "ease-out" },
+      "collapse": { "duration": 200, "easing": "ease-in" }
+    },
+    "commandPalette": {
+      "open": { "duration": 150, "easing": "ease-out" },
+      "close": { "duration": 100, "easing": "ease-in" }
+    },
+    "hover": {
+      "duration": 100,
+      "easing": "ease-out"
+    }
+  }
+}

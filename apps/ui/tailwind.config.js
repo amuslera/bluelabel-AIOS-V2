@@ -17,6 +17,13 @@ module.exports = {
         'error-pink': '#FF0080',
         'warning-gold': '#FFD700',
         'processing-blue': '#00BFFF',
+        // Navigation colors - matching CSS custom properties
+        'nav-bg': '#0d1117',
+        'nav-hover': 'rgba(0, 255, 255, 0.1)',
+        'nav-active': 'rgba(0, 255, 255, 0.2)',
+        'nav-border': 'rgba(0, 255, 255, 0.3)',
+        'nav-text': '#00ffff',
+        'nav-text-dim': 'rgba(0, 255, 255, 0.6)',
       },
       fontFamily: {
         'terminal': ['VT323', 'monospace'],

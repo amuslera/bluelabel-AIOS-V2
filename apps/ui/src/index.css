@@ -41,3 +41,178 @@
     pointer-events: none;
   }
 }
+
+:root {
+  /* Existing terminal colors */
+  --terminal-bg: #0a0f1c;
+  --terminal-cyan: #00ffff;
+  --terminal-green: #00ff00;
+  --terminal-yellow: #ffff00;
+  --terminal-blue: #4444ff;
+  --terminal-purple: #ff44ff;
+  --terminal-red: #ff4444;
+  
+  /* Navigation colors */
+  --nav-bg: #0d1117;
+  --nav-hover: rgba(0, 255, 255, 0.1);
+  --nav-active: rgba(0, 255, 255, 0.2);
+  --nav-border: rgba(0, 255, 255, 0.3);
+  --nav-text: #00ffff;
+  --nav-text-dim: rgba(0, 255, 255, 0.6);
+}
+
+/* Custom utility classes */
+@layer utilities {
+  /* Navigation colors */
+  .bg-nav-bg { background-color: var(--nav-bg); }
+  .bg-nav-hover { background-color: var(--nav-hover); }
+  .bg-nav-active { background-color: var(--nav-active); }
+  .border-nav-border { border-color: var(--nav-border); }
+  .text-nav-text { color: var(--nav-text); }
+  .text-nav-text-dim { color: var(--nav-text-dim); }
+  
+  /* Hover scale effects */
+  .hover\:scale-102:hover { transform: scale(1.02); }
+  .hover\:scale-105:hover { transform: scale(1.05); }
+  .hover\:scale-110:hover { transform: scale(1.10); }
+  
+  /* Animation delays */
+  .animation-delay-75 { animation-delay: 75ms; }
+  .animation-delay-150 { animation-delay: 150ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+}
+
+/* Custom keyframe animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--terminal-cyan);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--terminal-cyan), 0 0 30px var(--terminal-cyan);
+  }
+}
+
+/* Animation classes */
+.animate-slideDown {
+  animation: slideDown 150ms ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 150ms ease-out;
+}
+
+.animate-fadeInScale {
+  animation: fadeInScale 200ms ease-out;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Scrollbar styling for navigation */
+.nav-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav-scrollbar::-webkit-scrollbar-track {
+  background: var(--nav-bg);
+}
+
+.nav-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--nav-border);
+  border-radius: 3px;
+}
+
+.nav-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--nav-text-dim);
+}
+
+/* Terminal-style focus indicators */
+.focus-terminal:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--terminal-cyan);
+}
+
+/* ASCII-style borders */
+.border-ascii {
+  border: 1px solid var(--nav-border);
+  position: relative;
+}
+
+.border-ascii::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(45deg, 
+    var(--nav-border) 0%, 
+    transparent 25%, 
+    transparent 75%, 
+    var(--nav-border) 100%
+  );
+  z-index: -1;
+}
+
+/* Responsive text sizing */
+@layer utilities {
+  .text-responsive {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+  
+  .text-responsive-lg {
+    font-size: clamp(1rem, 3vw, 1.125rem);
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

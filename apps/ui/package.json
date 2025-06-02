@@ -23,7 +23,7 @@
     "tailwind-merge": "^3.3.0",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
-    "zustand": "^4.4.0"
+    "zustand": "^4.5.7"
   },
   "scripts": {
     "start": "react-scripts start",
