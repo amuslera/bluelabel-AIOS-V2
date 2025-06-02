@@ -9,6 +9,7 @@ interface AudioUploaderProps {
   onUploadProgress: (progress: number) => void;
   onUploadComplete: (workflowId: string) => void;
   onUploadError: (error: string) => void;
+  onCancel?: () => void;
   disabled?: boolean;
 }
 
@@ -18,6 +19,7 @@ export function AudioUploader({
   onUploadProgress,
   onUploadComplete,
   onUploadError,
+  onCancel,
   disabled = false
 }: AudioUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -27,6 +29,7 @@ export function AudioUploader({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showRecordingTemplate, setShowRecordingTemplate] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -123,6 +126,10 @@ export function AudioUploader({
         }
       );
 
+      // Show success animation
+      setShowSuccessAnimation(true);
+      setTimeout(() => setShowSuccessAnimation(false), 2000);
+      
       onUploadComplete(response.workflowId);
     } catch (error: any) {
       onUploadError(error.message);
@@ -211,17 +218,35 @@ export function AudioUploader({
     }
   }, []);
 
+  const cancelRecording = useCallback(() => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      
+      // Clean up recording chunks
+      recordingChunksRef.current = [];
+      
+      setIsRecording(false);
+      setShowRecordingTemplate(false);
+      setRecordingTime(0);
+    }
+  }, []);
+
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-6">
       {/* File Drop Zone */}
       <div
         className={`
-          relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200
+          relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ease-in-out
           ${isDragOver 
-            ? 'border-terminal-cyan bg-terminal-cyan/10' 
-            : 'border-terminal-cyan/50 hover:border-terminal-cyan'
+            ? 'border-terminal-cyan bg-terminal-cyan/10 scale-105 shadow-lg shadow-terminal-cyan/20' 
+            : 'border-terminal-cyan/50 hover:border-terminal-cyan hover:shadow-md hover:shadow-terminal-cyan/10'
           }
-          ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-terminal-cyan/5'}
         `}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -238,7 +263,7 @@ export function AudioUploader({
         />
 
         <div className="space-y-4">
-          <div className="text-terminal-cyan text-4xl">🎤</div>
+          <div className="text-terminal-cyan text-4xl transition-transform duration-200 hover:scale-110">🎤</div>
           
           <div>
             <h3 className="text-lg font-terminal text-terminal-cyan mb-2">
@@ -253,8 +278,14 @@ export function AudioUploader({
           </div>
 
           {isDragOver && (
-            <div className="text-terminal-cyan font-terminal">
+            <div className="text-terminal-cyan font-terminal animate-bounce">
               Drop your audio file here!
+            </div>
+          )}
+          
+          {showSuccessAnimation && (
+            <div className="text-green-400 font-terminal animate-pulse text-lg">
+              ✅ File uploaded successfully!
             </div>
           )}
         </div>
@@ -262,35 +293,35 @@ export function AudioUploader({
 
       {/* Selected File Info */}
       {selectedFile && (
-        <div className="border border-terminal-cyan/30 rounded-lg p-4 bg-terminal-bg/50">
-          <div className="flex items-center justify-between mb-3">
+        <div className="border border-terminal-cyan/30 rounded-lg p-6 bg-terminal-bg/50 shadow-md transition-all duration-200 hover:shadow-lg hover:shadow-terminal-cyan/10">
+          <div className="flex items-center justify-between mb-4">
             <h4 className="text-terminal-cyan font-terminal">Selected File</h4>
             <button
               onClick={removeFile}
               disabled={isUploading}
-              className="text-terminal-cyan/70 hover:text-terminal-cyan text-sm disabled:opacity-50"
+              className="text-terminal-cyan/70 hover:text-terminal-cyan text-sm disabled:opacity-50 transition-all duration-200 hover:scale-105 px-2 py-1 rounded"
             >
               [REMOVE]
             </button>
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between py-1">
               <span className="text-terminal-cyan/70">Name:</span>
-              <span className="text-terminal-cyan">{selectedFile.name}</span>
+              <span className="text-terminal-cyan font-medium">{selectedFile.name}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-1">
               <span className="text-terminal-cyan/70">Size:</span>
               <span className="text-terminal-cyan">
                 {roiWorkflowAPI.formatFileSize(selectedFile.size)}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-1">
               <span className="text-terminal-cyan/70">Format:</span>
               <span className="text-terminal-cyan">{selectedFile.format}</span>
             </div>
             {selectedFile.duration && (
-              <div className="flex justify-between">
+              <div className="flex justify-between py-1">
                 <span className="text-terminal-cyan/70">Duration:</span>
                 <span className="text-terminal-cyan">
                   {roiWorkflowAPI.formatDuration(selectedFile.duration)}
@@ -304,47 +335,73 @@ export function AudioUploader({
             <audio
               ref={audioRef}
               controls
-              className="w-full"
+              className="w-full rounded-lg"
               src={selectedFile.url}
             />
           </div>
 
           {/* Upload Progress */}
           {isUploading && (
-            <div className="mt-4">
+            <div className="mt-6">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-terminal-cyan/70">Uploading...</span>
-                <span className="text-terminal-cyan">{uploadProgress}%</span>
+                <span className="text-terminal-cyan/70">Processing...</span>
+                <span className="text-terminal-cyan font-terminal">{uploadProgress}%</span>
               </div>
-              <div className="w-full bg-terminal-cyan/20 h-2 rounded">
+              <div className="w-full bg-terminal-cyan/20 h-3 rounded-lg overflow-hidden">
                 <div 
-                  className="bg-terminal-cyan h-2 rounded transition-all duration-300"
+                  className="bg-gradient-to-r from-terminal-cyan to-terminal-green h-3 rounded-lg transition-all duration-300 ease-out"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
+              {onCancel && (
+                <button
+                  onClick={() => {
+                    setIsUploading(false);
+                    setUploadProgress(0);
+                    removeFile();
+                    onCancel();
+                  }}
+                  className="w-full mt-4 px-6 py-3 border border-red-400 text-red-400 font-terminal uppercase hover:bg-red-400/10 transition-all duration-200 rounded-lg hover:scale-105"
+                >
+                  Cancel Processing
+                </button>
+              )}
             </div>
           )}
 
           {/* Upload Button */}
           {!isUploading && (
-            <button
-              onClick={handleUpload}
-              disabled={disabled}
-              className="w-full mt-4 px-4 py-2 bg-terminal-cyan text-black font-terminal uppercase hover:bg-terminal-cyan/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Process Audio Recording
-            </button>
+            <div className="flex gap-4 mt-6">
+              {onCancel && (
+                <button
+                  onClick={() => {
+                    removeFile();
+                    onCancel();
+                  }}
+                  className="flex-1 px-6 py-3 border border-terminal-cyan text-terminal-cyan font-terminal uppercase hover:bg-terminal-cyan/10 transition-all duration-200 rounded-lg hover:scale-105 hover:shadow-md"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={handleUpload}
+                disabled={disabled}
+                className="flex-1 px-6 py-3 bg-terminal-cyan text-black font-terminal uppercase hover:bg-terminal-cyan/80 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:scale-105 hover:shadow-lg disabled:hover:scale-100"
+              >
+                Process Audio Recording
+              </button>
+            </div>
           )}
         </div>
       )}
 
       {/* Recording Section */}
       {!selectedFile && (
-        <div className="border border-terminal-cyan/30 rounded-lg p-4 bg-terminal-bg/50">
+        <div className="border border-terminal-cyan/30 rounded-lg p-6 bg-terminal-bg/50 shadow-md transition-all duration-200 hover:shadow-lg hover:shadow-terminal-cyan/10">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-terminal-cyan font-terminal">Record Audio</h4>
             {isRecording && (
-              <span className="text-terminal-cyan text-sm font-terminal">
+              <span className="text-terminal-cyan text-sm font-terminal animate-pulse">
                 {formatTime(recordingTime)}
               </span>
             )}
@@ -354,20 +411,21 @@ export function AudioUploader({
             <button
               onClick={startRecording}
               disabled={disabled || isUploading}
-              className="w-full px-4 py-3 bg-terminal-cyan/20 border border-terminal-cyan text-terminal-cyan font-terminal uppercase hover:bg-terminal-cyan/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              className="w-full px-6 py-4 bg-terminal-cyan/20 border border-terminal-cyan text-terminal-cyan font-terminal uppercase hover:bg-terminal-cyan/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 rounded-lg hover:scale-105 hover:shadow-lg disabled:hover:scale-100"
             >
-              <span className="text-2xl">🎙️</span>
+              <span className="text-2xl transition-transform duration-200 hover:scale-110">🎙️</span>
               <span>Start Recording</span>
             </button>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Recording Animation */}
-              <div className="flex items-center justify-center py-4">
+              <div className="flex items-center justify-center py-6">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-red-500 animate-pulse flex items-center justify-center">
-                    <span className="text-2xl">🎙️</span>
+                  <div className="w-20 h-20 rounded-full bg-red-500 animate-pulse flex items-center justify-center shadow-lg">
+                    <span className="text-3xl">🎙️</span>
                   </div>
                   <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75"></div>
+                  <div className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-50 animation-delay-75"></div>
                 </div>
               </div>
 
@@ -376,24 +434,35 @@ export function AudioUploader({
                 <RecordingGuide language="en" />
               )}
 
-              <button
-                onClick={stopRecording}
-                className="w-full px-4 py-3 bg-red-500 text-white font-terminal uppercase hover:bg-red-600 transition-all flex items-center justify-center gap-3"
-              >
-                <span>⏹️</span>
-                <span>Stop Recording</span>
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={cancelRecording}
+                  className="flex-1 px-6 py-4 bg-gray-500 text-white font-terminal uppercase hover:bg-gray-600 transition-all duration-200 flex items-center justify-center gap-3 rounded-lg hover:scale-105 hover:shadow-lg"
+                >
+                  <span>❌</span>
+                  <span>Cancel</span>
+                </button>
+                <button
+                  onClick={stopRecording}
+                  className="flex-1 px-6 py-4 bg-red-500 text-white font-terminal uppercase hover:bg-red-600 transition-all duration-200 flex items-center justify-center gap-3 rounded-lg hover:scale-105 hover:shadow-lg"
+                >
+                  <span>⏹️</span>
+                  <span>Finish</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
       )}
 
       {/* Quick Tips */}
-      <div className="text-xs text-terminal-cyan/60 space-y-1">
-        <p>💡 <strong>Quick Tips:</strong></p>
-        <p>• Speak clearly and naturally</p>
-        <p>• Both English and Spanish are supported</p>
-        <p>• Recording will be transcribed and structured automatically</p>
+      <div className="text-xs text-terminal-cyan/60 space-y-2 p-4 bg-terminal-cyan/5 rounded-lg border border-terminal-cyan/20">
+        <p className="flex items-center gap-2"><span>💡</span><strong>Quick Tips:</strong></p>
+        <div className="ml-6 space-y-1">
+          <p>• Speak clearly and naturally</p>
+          <p>• Both English and Spanish are supported</p>
+          <p>• Recording will be transcribed and structured automatically</p>
+        </div>
       </div>
     </div>
   );

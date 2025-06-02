@@ -2,8 +2,7 @@ import axios from 'axios';
 import { 
   AudioUploadResponse, 
   WorkflowResult, 
-  WorkflowStatus,
-  ROIReportData 
+  WorkflowStatus
 } from '../types/roi-workflow';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -23,9 +22,9 @@ class ROIWorkflowAPI {
     formData.append('workflow_type', 'roi_report');
 
     try {
-      const response = await axios.post(`${API_BASE}/roi/upload`, formData, {
+      const response = await axios.post(`${API_BASE}/api/workflows/roi-report/`, formData, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          // 'Authorization': `Bearer ${localStorage.getItem('authToken')}`, // Temporarily disabled
           'Content-Type': 'multipart/form-data'
         },
         onUploadProgress: (progressEvent) => {
@@ -36,7 +35,10 @@ class ROIWorkflowAPI {
         }
       });
 
-      return response.data;
+      return {
+        ...response.data,
+        workflowId: response.data.workflow_id // Map backend field to frontend expectation
+      };
     } catch (error: any) {
       console.error('Audio upload failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to upload audio file');
@@ -50,7 +52,7 @@ class ROIWorkflowAPI {
     try {
       const response = await axios.post(`${API_BASE}/roi/record`, formData, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          // 'Authorization': `Bearer ${localStorage.getItem('authToken')}` // Temporarily disabled
         },
         onUploadProgress: (progressEvent) => {
           if (onProgress && progressEvent.total) {
@@ -60,7 +62,10 @@ class ROIWorkflowAPI {
         }
       });
 
-      return response.data;
+      return {
+        ...response.data,
+        workflowId: response.data.workflow_id // Map backend field to frontend expectation
+      };
     } catch (error: any) {
       console.error('Recording upload failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to upload recording');

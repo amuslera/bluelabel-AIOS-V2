@@ -6,7 +6,7 @@ import { ExportOptions } from './ExportOptions';
 import { 
   AudioFile, 
   WorkflowStatus, 
-  WorkflowResult, 
+  WorkflowResult,
   ROIReportData 
 } from '../../types/roi-workflow';
 import { roiWorkflowAPI } from '../../api/roi-workflow';
@@ -30,29 +30,7 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
   
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Sample data for demo purposes
-  const sampleData: ROIReportData[] = [
-    {
-      id: '1',
-      name: 'John Smith',
-      company: 'TechCorp Solutions',
-      position: 'Chief Technology Officer',
-      discussion: 'Discussed our AI automation platform integration, potential for 50% workflow efficiency improvement, budget considerations for Q1 implementation.',
-      contactType: 'prospective',
-      priorityLevel: 'high',
-      actionItems: ['Send detailed proposal by Friday', 'Schedule technical demo with engineering team', 'Prepare cost analysis for 100-user deployment']
-    },
-    {
-      id: '2', 
-      name: 'Maria Rodriguez',
-      company: 'Global Consulting Inc',
-      position: 'Operations Director',
-      discussion: 'Review of current contract performance, discussed expanding services to European markets, very satisfied with current ROI.',
-      contactType: 'existing',
-      priorityLevel: 'medium',
-      actionItems: ['Prepare market expansion proposal', 'Coordinate with European team leads']
-    }
-  ];
+  // Sample data removed as it's no longer needed for demo purposes
 
   // Cleanup WebSocket on unmount
   useEffect(() => {
@@ -65,9 +43,8 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
 
   // Monitor workflow status changes
   useEffect(() => {
-    if (workflowStatus?.status === 'completed') {
-      handleWorkflowComplete();
-    } else if (workflowStatus?.status === 'error' || workflowStatus?.status === 'failed') {
+    // Only handle error status here - completion is handled by polling callback
+    if (workflowStatus?.status === 'error' || workflowStatus?.status === 'failed') {
       setPhase('error');
       const errorMessage = workflowStatus.error || workflowStatus.error_message || 'Processing failed';
       console.error('Workflow status error:', errorMessage);
@@ -108,6 +85,21 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
   const handleUploadError = (errorMessage: string) => {
     setError(errorMessage);
     setPhase('error');
+  };
+
+  const handleCancel = () => {
+    // Cleanup any ongoing processes
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    // Reset to upload phase
+    setPhase('upload');
+    setSelectedFile(null);
+    setWorkflowId(null);
+    setWorkflowStatus(null);
+    setError(null);
   };
 
   const startRealTimePolling = (workflowIdValue: string) => {
@@ -174,7 +166,8 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
 
       // Extract data from the result - handle different backend response formats
       const transcription = result.transcript || result.transcription || '';
-      const transcriptionEnglish = result.transcription_english || result.transcript_english || '';
+      const transcriptionEnglish = result.transcription_english || result.transcript_english || 
+                                   (result.extracted_data && result.extracted_data.transcription_english) || '';
       const detectedLanguage = result.language || result.language_detected || 'en';
       
       console.log('Transcription found:', transcription);
@@ -196,10 +189,27 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
       // Convert backend data to frontend format
       const formattedResults: ROIReportData[] = [];
       
-      // Handle array of data (multiple contacts)
-      if (Array.isArray(extractedData)) {
-        console.log('Processing array of', extractedData.length, 'items');
-        extractedData.forEach((item, index) => {
+      // Handle new "contacts" array format from extraction agent
+      if (extractedData && extractedData.contacts && Array.isArray(extractedData.contacts)) {
+        console.log('Processing new contacts array format with', extractedData.contacts.length, 'contacts');
+        extractedData.contacts.forEach((contact: any, index: number) => {
+          console.log(`Contact ${index}:`, contact);
+          formattedResults.push({
+            id: (index + 1).toString(),
+            name: contact.name || 'Not specified',
+            company: contact.company || 'Not specified',
+            position: contact.position || 'Not specified',
+            discussion: contact.discussion || 'Not specified',
+            contactType: (contact.contact_type || contact.contactType || 'prospective').toLowerCase() as 'prospective' | 'existing',
+            priorityLevel: (contact.priority || contact.priorityLevel || contact.priority_level || 'medium').toLowerCase() as 'high' | 'medium' | 'low',
+            actionItems: contact.action_items || contact.actionItems || []
+          });
+        });
+      }
+      // Handle legacy array format (backward compatibility)
+      else if (Array.isArray(extractedData)) {
+        console.log('Processing legacy array format with', extractedData.length, 'items');
+        extractedData.forEach((item: any, index: number) => {
           console.log(`Item ${index}:`, item);
           formattedResults.push({
             id: (index + 1).toString(),
@@ -213,14 +223,9 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
           });
         });
       } 
-      // Handle single object data
+      // Handle legacy single object format (backward compatibility)
       else if (extractedData && typeof extractedData === 'object' && !Array.isArray(extractedData)) {
-        console.log('Processing single object:', extractedData);
-        
-        // Check if it's wrapped in a list with one item
-        if (extractedData.length === 1 && Array.isArray(extractedData)) {
-          extractedData = extractedData[0];
-        }
+        console.log('Processing legacy single object format:', extractedData);
         
         formattedResults.push({
           id: '1',
@@ -240,7 +245,16 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
       console.log('Formatted results:', formattedResults);
       console.log('Number of results:', formattedResults.length);
       
-      setResults(formattedResults);
+      // Add new results to existing ones instead of replacing
+      setResults(prevResults => {
+        // Assign new IDs to avoid conflicts
+        const nextId = prevResults.length > 0 ? Math.max(...prevResults.map(r => parseInt(r.id))) + 1 : 1;
+        const newResultsWithIds = formattedResults.map((result, index) => ({
+          ...result,
+          id: (nextId + index).toString()
+        }));
+        return [...prevResults, ...newResultsWithIds];
+      });
       setTranscript(transcription || 'No transcription available');
       setTranscriptEnglish(transcriptionEnglish);
       setLanguage(detectedLanguage === 'spanish' || detectedLanguage === 'es' ? 'es' : 'en');
@@ -249,21 +263,6 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
       console.error('Failed to process workflow results:', error);
       console.error('Error stack:', error.stack);
       setError('Failed to process workflow results: ' + error.message);
-      setPhase('error');
-    }
-  };
-
-  // Keep the old handler for backward compatibility but make it use real data
-  const handleWorkflowComplete = async () => {
-    if (!workflowId) return;
-
-    try {
-      const result = await roiWorkflowAPI.getWorkflowResult(workflowId);
-      console.log('Fetched workflow result:', result);
-      await handleRealWorkflowComplete(result);
-    } catch (error: any) {
-      console.error('Failed to fetch workflow results:', error);
-      setError('Failed to fetch workflow results');
       setPhase('error');
     }
   };
@@ -279,7 +278,26 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
       wsRef.current = null;
     }
 
-    // Reset state
+    // Reset state but keep existing results
+    setPhase('upload');
+    setSelectedFile(null);
+    setWorkflowId(null);
+    setWorkflowStatus(null);
+    setError(null);
+    setTranscript('');
+    setTranscriptEnglish('');
+    setLanguage(null);
+    // Note: We intentionally keep existing results to allow multiple recordings
+  };
+
+  const handleClearAll = () => {
+    // Cleanup
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    // Reset everything including results
     setPhase('upload');
     setSelectedFile(null);
     setWorkflowId(null);
@@ -301,17 +319,25 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
             onUploadProgress={handleUploadProgress}
             onUploadComplete={handleUploadComplete}
             onUploadError={handleUploadError}
+            onCancel={handleCancel}
           />
         );
 
       case 'processing':
         return workflowStatus ? (
-          <WorkflowProgress status={workflowStatus} />
+          <WorkflowProgress status={workflowStatus} onCancel={handleCancel} />
         ) : (
           <div className="text-center py-12">
             <div className="text-4xl mb-4">⚡</div>
             <h3 className="text-lg font-terminal text-terminal-cyan mb-2">Initializing...</h3>
             <p className="text-terminal-cyan/70">Setting up your audio processing workflow</p>
+            {/* Cancel button for initialization phase */}
+            <button
+              onClick={handleCancel}
+              className="mt-4 px-6 py-2 border border-red-400 text-red-400 font-terminal uppercase hover:bg-red-400/10 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         );
 
@@ -326,15 +352,15 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <div className="text-terminal-green/70 mb-1">Audio File:</div>
-                  <div className="text-terminal-green">{selectedFile?.name}</div>
+                  <div className="text-terminal-green/70 mb-1">Latest Audio File:</div>
+                  <div className="text-terminal-green">{selectedFile?.name || 'Multiple recordings'}</div>
                 </div>
                 <div>
                   <div className="text-terminal-green/70 mb-1">Language Detected:</div>
                   <div className="text-terminal-green">{language === 'en' ? 'English' : 'Spanish'}</div>
                 </div>
                 <div>
-                  <div className="text-terminal-green/70 mb-1">Records Extracted:</div>
+                  <div className="text-terminal-green/70 mb-1">Total Records:</div>
                   <div className="text-terminal-green">{results.length} contacts</div>
                 </div>
               </div>
@@ -382,9 +408,15 @@ export function ROIWorkflowContainer({ className = '' }: ROIWorkflowContainerPro
             <div className="flex justify-center gap-4">
               <button
                 onClick={handleStartOver}
-                className="px-6 py-2 border border-terminal-cyan text-terminal-cyan font-terminal uppercase hover:bg-terminal-cyan hover:text-black transition-colors"
+                className="px-6 py-2 bg-terminal-cyan text-black font-terminal uppercase hover:bg-terminal-cyan/80 transition-colors"
               >
-                Process Another Recording
+                Add Another Recording
+              </button>
+              <button
+                onClick={handleClearAll}
+                className="px-6 py-2 border border-terminal-cyan text-terminal-cyan font-terminal uppercase hover:bg-terminal-cyan/10 transition-colors"
+              >
+                Start New Session
               </button>
             </div>
           </div>

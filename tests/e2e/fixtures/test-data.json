@@ -1,0 +1,44 @@
+{
+  "expectedResults": {
+    "spanish": {
+      "transcript": "Esta es una prueba de audio en español",
+      "translation": "This is an audio test in Spanish",
+      "extractedData": {
+        "contactName": "Test Contact",
+        "role": "Test Role",
+        "organization": "Test Organization",
+        "priority": "HIGH",
+        "nextSteps": "Follow up with test action",
+        "tags": ["test", "demo", "spanish"]
+      }
+    },
+    "english": {
+      "transcript": "This is a test audio recording in English",
+      "extractedData": {
+        "contactName": "English Test Contact",
+        "role": "Test Role",
+        "organization": "Test Corp",
+        "priority": "MEDIUM",
+        "nextSteps": "Schedule follow-up meeting",
+        "tags": ["test", "demo", "english"]
+      }
+    }
+  },
+  "testFiles": {
+    "validAudio": [
+      "test_real_audio.mp3",
+      "test_meeting.wav",
+      "test_real.wav"
+    ],
+    "invalidFiles": [
+      "test-document.pdf",
+      "test-image.png",
+      "test-text.txt"
+    ]
+  },
+  "timeouts": {
+    "upload": 5000,
+    "processing": 60000,
+    "results": 10000
+  }
+}

@@ -151,10 +151,10 @@ export function ResultsTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border border-terminal-cyan/30 rounded-lg">
+      <div className="overflow-x-auto border border-terminal-cyan/30 rounded-lg shadow-lg">
         <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="border-b border-terminal-cyan/30 bg-terminal-cyan/5">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-terminal-cyan/30 bg-terminal-cyan/5 backdrop-blur-sm">
               {[
                 { key: 'name', label: 'Name' },
                 { key: 'company', label: 'Company' },
@@ -166,12 +166,12 @@ export function ResultsTable({
               ].map(({ key, label }) => (
                 <th
                   key={key}
-                  className="px-4 py-3 text-left font-terminal text-terminal-cyan cursor-pointer hover:bg-terminal-cyan/10 transition-colors"
+                  className="px-6 py-4 text-left font-terminal text-terminal-cyan cursor-pointer hover:bg-terminal-cyan/10 transition-all duration-200 hover:shadow-md first:rounded-tl-lg last:rounded-tr-lg"
                   onClick={() => handleSort(key as SortField)}
                 >
                   <div className="flex items-center gap-2">
                     <span>{label}</span>
-                    <span className="text-xs">{getSortIcon(key as SortField)}</span>
+                    <span className="text-xs transition-transform duration-200 hover:scale-110">{getSortIcon(key as SortField)}</span>
                   </div>
                 </th>
               ))}
@@ -182,11 +182,11 @@ export function ResultsTable({
               <tr
                 key={item.id}
                 className={`
-                  border-b border-terminal-cyan/20 hover:bg-terminal-cyan/5 transition-colors
-                  ${index % 2 === 0 ? 'bg-terminal-bg' : 'bg-terminal-cyan/2'}
+                  border-b border-terminal-cyan/20 hover:bg-blue-50/10 hover:shadow-md transition-all duration-200 hover:scale-[1.01] group
+                  ${index % 2 === 0 ? 'bg-terminal-bg' : 'bg-gray-50/5'}
                 `}
               >
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <EditableCell
                     value={item.name}
                     isEditing={editingCell?.id === item.id && editingCell?.field === 'name'}
@@ -196,7 +196,7 @@ export function ResultsTable({
                     isEditable={isEditable}
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <EditableCell
                     value={item.company}
                     isEditing={editingCell?.id === item.id && editingCell?.field === 'company'}
@@ -206,7 +206,7 @@ export function ResultsTable({
                     isEditable={isEditable}
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <EditableCell
                     value={item.position}
                     isEditing={editingCell?.id === item.id && editingCell?.field === 'position'}
@@ -216,7 +216,7 @@ export function ResultsTable({
                     isEditable={isEditable}
                   />
                 </td>
-                <td className="px-4 py-3 max-w-xs">
+                <td className="px-6 py-4 max-w-xs">
                   <EditableCell
                     value={item.discussion}
                     isEditing={editingCell?.id === item.id && editingCell?.field === 'discussion'}
@@ -227,7 +227,7 @@ export function ResultsTable({
                     multiline
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <EditableSelectCell
                     value={item.contactType}
                     options={[
@@ -239,10 +239,12 @@ export function ResultsTable({
                     onStartEdit={() => setEditingCell({ id: item.id, field: 'contactType' })}
                     onCancelEdit={() => setEditingCell(null)}
                     isEditable={isEditable}
-                    colorClass={CONTACT_TYPE_COLORS[item.contactType]}
+                    colorClass={CONTACT_TYPE_COLORS[item.contactType] || 'text-gray-400 bg-gray-400/10 border-gray-400/30'}
+                    allowCustom={true}
+                    customPlaceholder="Enter custom contact type"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <EditableSelectCell
                     value={item.priorityLevel}
                     options={[
@@ -255,10 +257,12 @@ export function ResultsTable({
                     onStartEdit={() => setEditingCell({ id: item.id, field: 'priorityLevel' })}
                     onCancelEdit={() => setEditingCell(null)}
                     isEditable={isEditable}
-                    colorClass={PRIORITY_COLORS[item.priorityLevel]}
+                    colorClass={PRIORITY_COLORS[item.priorityLevel] || 'text-gray-400 bg-gray-400/10 border-gray-400/30'}
+                    allowCustom={true}
+                    customPlaceholder="Enter custom priority level"
                   />
                 </td>
-                <td className="px-4 py-3 max-w-xs">
+                <td className="px-6 py-4 max-w-xs">
                   <EditableCell
                     value={item.actionItems.join(', ')}
                     isEditing={editingCell?.id === item.id && editingCell?.field === 'actionItems'}
@@ -276,22 +280,22 @@ export function ResultsTable({
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-terminal-cyan/30">
-        <div className="text-center p-3 border border-terminal-cyan/30 rounded">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-terminal-cyan/30">
+        <div className="text-center p-4 border border-terminal-cyan/30 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 bg-terminal-cyan/5">
           <div className="text-2xl font-terminal text-terminal-cyan">{data.length}</div>
           <div className="text-sm text-terminal-cyan/70">Total Contacts</div>
         </div>
-        <div className="text-center p-3 border border-terminal-cyan/30 rounded">
+        <div className="text-center p-4 border border-red-400/30 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 bg-red-400/5">
           <div className="text-2xl font-terminal text-red-400">
             {data.filter(item => item.priorityLevel === 'high').length}
           </div>
-          <div className="text-sm text-terminal-cyan/70">High Priority</div>
+          <div className="text-sm text-red-400/70">High Priority</div>
         </div>
-        <div className="text-center p-3 border border-terminal-cyan/30 rounded">
+        <div className="text-center p-4 border border-blue-400/30 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 bg-blue-400/5">
           <div className="text-2xl font-terminal text-blue-400">
             {data.filter(item => item.contactType === 'prospective').length}
           </div>
-          <div className="text-sm text-terminal-cyan/70">Prospective Clients</div>
+          <div className="text-sm text-blue-400/70">Prospective Clients</div>
         </div>
       </div>
     </div>
@@ -345,7 +349,7 @@ function EditableCell({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-terminal-bg border border-terminal-cyan text-terminal-cyan text-sm p-1 rounded"
+            className="w-full bg-terminal-bg border border-terminal-cyan text-terminal-cyan text-sm p-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-terminal-cyan/50 focus:border-terminal-cyan"
             rows={3}
             autoFocus
           />
@@ -355,20 +359,20 @@ function EditableCell({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-terminal-bg border border-terminal-cyan text-terminal-cyan text-sm p-1 rounded"
+            className="w-full bg-terminal-bg border border-terminal-cyan text-terminal-cyan text-sm p-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-terminal-cyan/50 focus:border-terminal-cyan"
             autoFocus
           />
         )}
         <div className="flex gap-2">
           <button
             onClick={handleSave}
-            className="text-xs bg-terminal-cyan text-black px-2 py-1 rounded hover:bg-terminal-cyan/80"
+            className="text-xs bg-terminal-cyan text-black px-3 py-1 rounded-lg hover:bg-terminal-cyan/80 transition-all duration-200 hover:scale-105 hover:shadow-md font-medium"
           >
             Save
           </button>
           <button
             onClick={onCancelEdit}
-            className="text-xs border border-terminal-cyan/50 text-terminal-cyan px-2 py-1 rounded hover:bg-terminal-cyan hover:text-black"
+            className="text-xs border border-terminal-cyan/50 text-terminal-cyan px-3 py-1 rounded-lg hover:bg-terminal-cyan hover:text-black transition-all duration-200 hover:scale-105 hover:shadow-md"
           >
             Cancel
           </button>
@@ -380,8 +384,8 @@ function EditableCell({
   return (
     <div
       className={`
-        text-terminal-cyan text-sm break-words
-        ${isEditable ? 'cursor-pointer hover:bg-terminal-cyan/10 p-1 rounded transition-colors' : ''}
+        text-terminal-cyan text-sm break-words transition-all duration-200
+        ${isEditable ? 'cursor-pointer hover:bg-terminal-cyan/10 p-2 rounded-lg hover:scale-105 hover:shadow-md group-hover:bg-terminal-cyan/5' : ''}
       `}
       onClick={isEditable ? onStartEdit : undefined}
       title={isEditable ? 'Click to edit' : undefined}
@@ -401,6 +405,8 @@ interface EditableSelectCellProps {
   onCancelEdit: () => void;
   isEditable: boolean;
   colorClass?: string;
+  allowCustom?: boolean;
+  customPlaceholder?: string;
 }
 
 function EditableSelectCell({
@@ -411,16 +417,32 @@ function EditableSelectCell({
   onStartEdit,
   onCancelEdit,
   isEditable,
-  colorClass = ''
+  colorClass = '',
+  allowCustom = false,
+  customPlaceholder = 'Enter custom value'
 }: EditableSelectCellProps) {
   const [editValue, setEditValue] = useState(value);
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [customValue, setCustomValue] = useState('');
 
   React.useEffect(() => {
     setEditValue(value);
-  }, [value]);
+    // Check if current value is not in predefined options
+    const isValueInOptions = options.some(opt => opt.value === value);
+    if (allowCustom && !isValueInOptions && value) {
+      setIsCustomMode(true);
+      setCustomValue(value);
+    } else {
+      setIsCustomMode(false);
+      setCustomValue('');
+    }
+  }, [value, options, allowCustom]);
 
   const handleSave = () => {
-    onEdit(editValue);
+    const finalValue = isCustomMode ? customValue : editValue;
+    onEdit(finalValue);
+    setIsCustomMode(false);
+    setCustomValue('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -428,35 +450,79 @@ function EditableSelectCell({
       handleSave();
     } else if (e.key === 'Escape') {
       setEditValue(value);
+      setIsCustomMode(false);
+      setCustomValue('');
       onCancelEdit();
+    }
+  };
+
+  const handleSelectChange = (selectedValue: string) => {
+    if (selectedValue === '__custom__') {
+      setIsCustomMode(true);
+      setCustomValue('');
+    } else {
+      setIsCustomMode(false);
+      setEditValue(selectedValue);
     }
   };
 
   if (isEditing && isEditable) {
     return (
       <div className="space-y-2">
-        <select
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="w-full bg-terminal-bg border border-terminal-cyan text-terminal-cyan text-sm p-1 rounded"
-          autoFocus
-        >
-          {options.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        {!isCustomMode ? (
+          <select
+            value={editValue}
+            onChange={(e) => handleSelectChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full bg-terminal-bg border border-terminal-cyan text-terminal-cyan text-sm p-1 rounded"
+            autoFocus
+          >
+            {options.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+            {allowCustom && (
+              <option value="__custom__">+ Add custom...</option>
+            )}
+          </select>
+        ) : (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={customValue}
+              onChange={(e) => setCustomValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={customPlaceholder}
+              className="w-full bg-terminal-bg border border-terminal-cyan text-terminal-cyan text-sm p-1 rounded"
+              autoFocus
+            />
+            <button
+              onClick={() => {
+                setIsCustomMode(false);
+                setCustomValue('');
+              }}
+              className="text-xs text-terminal-cyan/70 hover:text-terminal-cyan"
+            >
+              ← Back to preset options
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
           <button
             onClick={handleSave}
-            className="text-xs bg-terminal-cyan text-black px-2 py-1 rounded hover:bg-terminal-cyan/80"
+            disabled={isCustomMode && !customValue.trim()}
+            className="text-xs bg-terminal-cyan text-black px-2 py-1 rounded hover:bg-terminal-cyan/80 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save
           </button>
           <button
-            onClick={onCancelEdit}
+            onClick={() => {
+              setEditValue(value);
+              setIsCustomMode(false);
+              setCustomValue('');
+              onCancelEdit();
+            }}
             className="text-xs border border-terminal-cyan/50 text-terminal-cyan px-2 py-1 rounded hover:bg-terminal-cyan hover:text-black"
           >
             Cancel

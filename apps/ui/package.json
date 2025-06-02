@@ -29,6 +29,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:e2e": "playwright test --config=../../tests/e2e/playwright.config.ts",
+    "test:e2e:headed": "playwright test --config=../../tests/e2e/playwright.config.ts --headed",
+    "test:e2e:debug": "playwright test --config=../../tests/e2e/playwright.config.ts --debug",
+    "test:a11y": "playwright test --config=../../tests/e2e/playwright.config.ts accessibility.spec.ts",
+    "test:mobile": "playwright test --config=../../tests/e2e/playwright.config.ts mobile.spec.ts",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -50,6 +55,8 @@
     ]
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.52.0",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0"
