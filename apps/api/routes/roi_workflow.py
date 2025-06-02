@@ -5,10 +5,11 @@ Handles audio upload, processing, and results retrieval for ROI analysis workflo
 import io
 import csv
 import asyncio
+import json
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Set
 import logging
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -28,6 +29,50 @@ router = APIRouter(prefix="/workflows/roi-report", tags=["ROI Workflows"])
 
 # Initialize workflow service
 workflow_service = ROIWorkflowService()
+
+# WebSocket connection manager for real-time progress updates
+class ROIWorkflowConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, Set[WebSocket]] = {}
+    
+    async def connect(self, websocket: WebSocket, workflow_id: str):
+        await websocket.accept()
+        if workflow_id not in self.active_connections:
+            self.active_connections[workflow_id] = set()
+        self.active_connections[workflow_id].add(websocket)
+        logger.info(f"WebSocket connected for workflow {workflow_id}")
+    
+    def disconnect(self, websocket: WebSocket, workflow_id: str):
+        if workflow_id in self.active_connections:
+            self.active_connections[workflow_id].discard(websocket)
+            if not self.active_connections[workflow_id]:
+                del self.active_connections[workflow_id]
+        logger.info(f"WebSocket disconnected for workflow {workflow_id}")
+    
+    async def send_progress_update(self, workflow_id: str, update: dict):
+        if workflow_id in self.active_connections:
+            disconnected = set()
+            for websocket in self.active_connections[workflow_id]:
+                try:
+                    await websocket.send_json(update)
+                except Exception as e:
+                    logger.error(f"Error sending progress update: {e}")
+                    disconnected.add(websocket)
+            
+            # Clean up disconnected sockets
+            for websocket in disconnected:
+                self.disconnect(websocket, workflow_id)
+
+websocket_manager = ROIWorkflowConnectionManager()
+
+# Set up WebSocket callback for workflow service
+async def websocket_callback(update_data: dict):
+    """Callback function for workflow progress updates"""
+    workflow_id = update_data.get("workflow_id")
+    if workflow_id:
+        await websocket_manager.send_progress_update(workflow_id, update_data)
+
+workflow_service.set_websocket_callback(websocket_callback)
 
 
 @router.post("/", response_model=WorkflowUploadResponse)
@@ -392,6 +437,65 @@ async def delete_workflow(
     except Exception as e:
         logger.error(f"Failed to delete workflow: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete workflow")
+
+
+@router.websocket("/ws/{workflow_id}")
+async def websocket_workflow_progress(websocket: WebSocket, workflow_id: str):
+    """WebSocket endpoint for real-time workflow progress updates."""
+    await websocket_manager.connect(websocket, workflow_id)
+    
+    try:
+        while True:
+            # Keep connection alive and handle heartbeat
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            if message.get("action") == "ping":
+                await websocket.send_json({"action": "pong", "timestamp": datetime.utcnow().isoformat()})
+            elif message.get("action") == "disconnect":
+                break
+                
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket, workflow_id)
+    except Exception as e:
+        logger.error(f"WebSocket error for workflow {workflow_id}: {e}")
+        websocket_manager.disconnect(websocket, workflow_id)
+
+
+@router.get("/performance/stats")
+async def get_performance_statistics():
+    """Get comprehensive performance statistics for ROI workflows."""
+    try:
+        stats = await workflow_service.get_performance_stats()
+        
+        return {
+            "performance_stats": stats,
+            "websocket_connections": sum(len(connections) for connections in websocket_manager.active_connections.values()),
+            "active_workflow_connections": len(websocket_manager.active_connections),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get performance stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve performance statistics")
+
+
+@router.post("/performance/cache/clear")
+async def clear_performance_cache(
+    cache_type: Optional[str] = Query(None, description="Cache type to clear: transcription, translation, extraction, or all")
+):
+    """Clear performance cache for better testing or troubleshooting."""
+    try:
+        await workflow_service.clear_cache(cache_type)
+        
+        return {
+            "message": f"Cache cleared successfully {'for ' + cache_type if cache_type else 'for all types'}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to clear cache: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear cache")
 
 
 @router.get("/health/check")

@@ -182,16 +182,31 @@ IMPORTANT:
 - Use proper JSON formatting with double quotes
 - No newlines within string values
 - All text in English, even if transcript is in Spanish
+- If there are multiple people mentioned, return an array of contacts
+- If only one person is mentioned, still return an array with one contact
 
-JSON format:
+JSON format for multiple contacts:
 {{
-  "name": "person full name",
-  "company": "company name",
-  "position": "job title",
-  "discussion": "brief summary in one sentence",
-  "contact_type": "Prospective",
-  "priority": "Medium",
-  "action_items": ["specific action 1", "specific action 2"]
+  "contacts": [
+    {{
+      "name": "person full name",
+      "company": "company name",
+      "position": "job title",
+      "discussion": "brief summary in one sentence about this person",
+      "contact_type": "Prospective",
+      "priority": "Medium",
+      "action_items": ["specific action 1", "specific action 2"]
+    }},
+    {{
+      "name": "another person full name",
+      "company": "company name",
+      "position": "job title",
+      "discussion": "brief summary in one sentence about this person",
+      "contact_type": "Existing",
+      "priority": "High",
+      "action_items": ["specific action 3", "specific action 4"]
+    }}
+  ]
 }}"""
 
             # Call LLM API
@@ -268,36 +283,60 @@ JSON format:
     
     def _validate_and_clean_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and clean extracted data"""
+        # Check if data contains multiple contacts
+        if "contacts" in data and isinstance(data["contacts"], list):
+            # Handle multiple contacts format
+            cleaned_contacts = []
+            for contact in data["contacts"]:
+                cleaned_contact = self._clean_single_contact(contact)
+                if cleaned_contact:  # Only add if we have valid data
+                    cleaned_contacts.append(cleaned_contact)
+            
+            return {"contacts": cleaned_contacts}
+        else:
+            # Handle single contact format (backward compatibility)
+            cleaned_contact = self._clean_single_contact(data)
+            if cleaned_contact:
+                return {"contacts": [cleaned_contact]}  # Convert to array format
+            else:
+                return {"contacts": []}
+    
+    def _clean_single_contact(self, contact_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Clean and validate a single contact"""
         cleaned = {}
         
         # Required string fields
         string_fields = ["name", "company", "position", "discussion"]
         for field in string_fields:
-            value = data.get(field, "").strip()
+            value = contact_data.get(field, "").strip()
             cleaned[field] = value if value and value.lower() != "not specified" else None
         
         # Contact type validation
-        contact_type = data.get("contact_type", "").strip()
+        contact_type = contact_data.get("contact_type", "").strip()
         if contact_type in ["Prospective", "Existing"]:
             cleaned["contact_type"] = contact_type
         else:
             cleaned["contact_type"] = None
         
         # Priority validation
-        priority = data.get("priority", "").strip()
+        priority = contact_data.get("priority", "").strip()
         if priority in ["High", "Medium", "Low"]:
             cleaned["priority"] = priority
         else:
             cleaned["priority"] = "Medium"  # Default to medium if unclear
         
         # Action items validation
-        action_items = data.get("action_items", [])
+        action_items = contact_data.get("action_items", [])
         if isinstance(action_items, list):
             cleaned["action_items"] = [item.strip() for item in action_items if item.strip()]
         else:
             cleaned["action_items"] = []
         
-        return cleaned
+        # Only return contact if we have at least a name
+        if cleaned.get("name"):
+            return cleaned
+        else:
+            return None
     
     def _clean_json_response(self, response: str) -> str:
         """Clean and fix common JSON formatting issues"""
@@ -340,7 +379,7 @@ JSON format:
     def _extract_fallback_data(self, transcription: str) -> Dict[str, Any]:
         """Simple fallback extraction when JSON parsing fails"""
         # Extract basic information using simple text parsing
-        fallback = {
+        fallback_contact = {
             "name": None,
             "company": None,
             "position": None,
@@ -356,20 +395,20 @@ JSON format:
         # Look for "con [Name]" pattern in Spanish
         name_match = re.search(r'con\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', transcription)
         if name_match:
-            fallback["name"] = name_match.group(1)
+            fallback_contact["name"] = name_match.group(1)
         
         # Look for CEO, CTO, etc.
         if "CEO" in transcription:
-            fallback["position"] = "CEO"
+            fallback_contact["position"] = "CEO"
         elif "CTO" in transcription:
-            fallback["position"] = "CTO"
+            fallback_contact["position"] = "CTO"
         
         # Look for company names (capitalized words)
         company_match = re.search(r'proyecto\s+([A-Z][A-Z]+)', transcription)
         if company_match:
-            fallback["company"] = company_match.group(1)
+            fallback_contact["company"] = company_match.group(1)
         
-        return fallback
+        return {"contacts": [fallback_contact]}
 
     def _calculate_extraction_confidence(self, data: Dict[str, Any], transcript: str) -> float:
         """Calculate confidence score based on data completeness and quality"""
@@ -377,28 +416,52 @@ JSON format:
         # Base confidence
         confidence = 0.5
         
+        # Handle multiple contacts format
+        contacts = data.get("contacts", [])
+        if not contacts:
+            return 0.0
+        
+        # Calculate average confidence across all contacts
+        total_confidence = 0.0
+        for contact in contacts:
+            contact_confidence = self._calculate_single_contact_confidence(contact, transcript)
+            total_confidence += contact_confidence
+        
+        # Average confidence across contacts
+        confidence = total_confidence / len(contacts)
+        
+        # Bonus for successfully extracting multiple contacts
+        if len(contacts) > 1:
+            confidence += 0.1
+        
+        return min(1.0, max(0.0, confidence))
+    
+    def _calculate_single_contact_confidence(self, contact: Dict[str, Any], transcript: str) -> float:
+        """Calculate confidence score for a single contact"""
+        confidence = 0.5
+        
         # Check for presence of key fields
         key_fields = ["name", "company", "discussion"]
-        filled_fields = sum(1 for field in key_fields if data.get(field))
+        filled_fields = sum(1 for field in key_fields if contact.get(field))
         confidence += (filled_fields / len(key_fields)) * 0.3
         
         # Check for specific required fields
-        if data.get("contact_type"):
+        if contact.get("contact_type"):
             confidence += 0.1
-        if data.get("priority"):
+        if contact.get("priority"):
             confidence += 0.05
-        if data.get("action_items"):
+        if contact.get("action_items"):
             confidence += 0.05
         
         # Penalize very short extractions
-        if data.get("discussion") and len(data["discussion"]) < 20:
+        if contact.get("discussion") and len(contact["discussion"]) < 20:
             confidence -= 0.1
         
         # Bonus for longer, detailed transcripts (indicates more information)
         if len(transcript) > 200:
             confidence += 0.05
         
-        return min(1.0, max(0.0, confidence))
+        return confidence
     
     def _error_response(self, error_message: str) -> Dict[str, Any]:
         """Create standardized error response"""

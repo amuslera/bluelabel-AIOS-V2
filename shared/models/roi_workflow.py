@@ -16,6 +16,7 @@ class WorkflowStatus(str, Enum):
     """Workflow status enumeration"""
     UPLOADED = "uploaded"
     TRANSCRIBING = "transcribing"
+    TRANSLATING = "translating"
     EXTRACTING = "extracting"
     COMPLETED = "completed"
     FAILED = "failed"
